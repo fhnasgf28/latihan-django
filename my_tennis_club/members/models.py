@@ -11,3 +11,5 @@ class Member(models.Model):
     state = models.CharField(max_length=50)
     zip_code = models.CharField(max_length=10)
     membership_type = models.CharField(max_length=50)
+    phone = models.IntegerField(null=True)
+    joined_date = models.DateField(null=True)
