@@ -1,0 +1,23 @@
+<!-- pos_app/templates/pos_app/success.html -->
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Success</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'pos_app/styles.css' %}">
+</head>
+<body>
+    <h2>Transaction #{{ transaction.id }} Completed!</h2>
+    <p>Date: {{ transaction.date }}</p>
+    <p>Total: ${{ transaction.total }}</p>
+
+    <h4>Items:</h4>
+    <ul>
+        {% for item in transaction.items.all %}
+            <li>{{ item.product.name }} x {{ item.quantity }} = ${{ item.subtotal }}</li>
+        {% endfor %}
+    </ul>
+
+    <a href="/">Back to POS</a>
+</body>
+</html>
