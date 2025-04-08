@@ -13,3 +13,6 @@ class Member(models.Model):
     membership_type = models.CharField(max_length=50)
     phone = models.IntegerField(null=True)
     joined_date = models.DateField(null=True)
+
+    def __str__(self):
+        return f"{self.firstname} {self.lastname}"
