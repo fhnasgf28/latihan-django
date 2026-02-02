@@ -51,11 +51,14 @@ function isValidYoutubeUrl(url) {
 
 function getFilenameFromDisposition(disposition) {
   if (!disposition) return null;
-  const match = /filename="([^"]+)"/i.exec(disposition);
-  return match ? match[1] : null;
+  let match = /filename="([^"]+)"/i.exec(disposition);
+  if (match && match[1]) return match[1];
+  match = /filename=([^;]+)/i.exec(disposition);
+  if (match && match[1]) return match[1].trim();
+  return null;
 }
 
-async function downloadYoutube() {
+async function downloadDirect(type) {
   const url = youtubeUrl.value.trim();
   downloadError.value = "";
 
@@ -64,7 +67,7 @@ async function downloadYoutube() {
     return;
   }
   if (!isValidYoutubeUrl(url)) {
-    downloadError.value = "URL YouTube tidak valid. Contoh: https://www.youtube.com/watch?v=...";
+    downloadError.value = "URL YouTube tidak valid.";
     return;
   }
 
@@ -72,22 +75,34 @@ async function downloadYoutube() {
   try {
     const res = await axios.post(
       "/api/youtube/download/",
-      { url },
+      { url, type }, // type: 'video' | 'audio'
       { responseType: "blob" }
     );
 
-    const blob = new Blob([res.data], { type: "video/mp4" });
+    const isAudio = type === 'audio';
+    const contentType = res.headers["content-type"] || (isAudio ? "audio/mpeg" : "video/mp4");
+    const blob = new Blob([res.data], { type: contentType });
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     const filename = getFilenameFromDisposition(res.headers["content-disposition"]);
     link.href = downloadUrl;
-    link.download = filename || "youtube-video.mp4";
+    link.download = filename || (isAudio ? "audio.mp3" : "video.mp4");
     document.body.appendChild(link);
     link.click();
     link.remove();
     window.URL.revokeObjectURL(downloadUrl);
   } catch (e) {
-    downloadError.value = e?.response?.data?.detail || "Gagal download video. Coba lagi.";
+    if (e.response && e.response.data instanceof Blob) {
+      try {
+        const text = await e.response.data.text();
+        const json = JSON.parse(text);
+        downloadError.value = json.detail || "Gagal download.";
+      } catch (inner) {
+        downloadError.value = "Gagal download. Terjadi kesalahan server.";
+      }
+    } else {
+      downloadError.value = e?.response?.data?.detail || "Gagal download. Coba lagi.";
+    }
   } finally {
     downloadLoading.value = false;
   }
@@ -122,14 +137,11 @@ onMounted(() => {
             <p class="font-semibold text-ink">Aman untuk belajar</p>
             <p class="text-xs text-slate-500">Gunakan konten yang kamu miliki haknya</p>
           </div>
-          <div class="rounded-2xl bg-white/80 px-4 py-3 shadow-soft">
-            <p class="font-semibold text-ink">Cepat &amp; rapi</p>
-            <p class="text-xs text-slate-500">Desain fokus produktivitas</p>
-          </div>
         </div>
       </header>
 
       <section class="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <!-- Notes Section -->
         <div class="card-glass flex flex-col gap-6 rounded-3xl p-6 sm:p-8">
           <div class="flex items-center justify-between">
             <div>
@@ -151,7 +163,7 @@ onMounted(() => {
               :disabled="loading"
               class="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-emerald-300"
             >
-              {{ loading ? "Menyimpan..." : "Tambah" }}
+              {{ loading ? "..." : "Tambah" }}
             </button>
           </form>
 
@@ -161,7 +173,7 @@ onMounted(() => {
 
           <div class="space-y-3">
             <div v-if="notes.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-4 py-6 text-center text-sm text-slate-500">
-              Belum ada notes. Tambahkan ide pertama kamu.
+              Belum ada notes.
             </div>
             <ul v-else class="space-y-3">
               <li
@@ -176,18 +188,19 @@ onMounted(() => {
           </div>
         </div>
 
+        <!-- YouTube Downloader Section -->
         <div class="card-glass flex flex-col gap-6 rounded-3xl p-6 sm:p-8">
           <div class="flex items-center justify-between">
             <div>
               <h2 class="font-display text-xl font-semibold text-ink">Download YouTube</h2>
-              <p class="text-sm text-slate-500">Tempel link video, langsung download.</p>
+              <p class="text-sm text-slate-500">Pilih format, langsung download.</p>
             </div>
             <span class="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-              MP4
+              MP4 / MP3
             </span>
           </div>
 
-          <form @submit.prevent="downloadYoutube" class="space-y-4">
+          <div class="space-y-4">
             <div class="space-y-2">
               <label class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                 URL Video
@@ -197,26 +210,35 @@ onMounted(() => {
                 placeholder="https://www.youtube.com/watch?v=..."
                 class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-ink shadow-sm outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
               />
-              <div class="flex flex-wrap gap-2 text-xs text-slate-500">
-                <span class="rounded-full bg-slate-100 px-3 py-1">youtube.com</span>
-                <span class="rounded-full bg-slate-100 px-3 py-1">youtu.be</span>
-                <span class="rounded-full bg-slate-100 px-3 py-1">Link langsung</span>
-              </div>
             </div>
-            <button
-              :disabled="downloadLoading"
-              class="w-full rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-600"
-            >
-              {{ downloadLoading ? "Mengunduh..." : "Download Video" }}
-            </button>
-          </form>
 
-          <div v-if="downloadError" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {{ downloadError }}
-          </div>
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                @click="downloadDirect('video')"
+                :disabled="downloadLoading"
+                class="flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-4 text-sm font-semibold text-white shadow-soft transition hover:bg-slate-800 disabled:bg-slate-600"
+              >
+                <span v-if="downloadLoading">...</span>
+                <span v-else>Download MP4</span>
+              </button>
 
-          <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-            Tips: pastikan kamu punya izin untuk mengunduh video tersebut.
+              <button
+                @click="downloadDirect('audio')"
+                :disabled="downloadLoading"
+                class="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-4 text-sm font-semibold text-white shadow-soft transition hover:bg-emerald-700 disabled:bg-emerald-400"
+              >
+                <span v-if="downloadLoading">...</span>
+                <span v-else>Download MP3</span>
+              </button>
+            </div>
+
+            <div v-if="downloadLoading" class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sm text-sky-700">
+              Sedang memproses... Mohon tunggu.
+            </div>
+
+            <div v-if="downloadError" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {{ downloadError }}
+            </div>
           </div>
         </div>
       </section>
