@@ -335,7 +335,10 @@ const etaText = computed(() => {
 const resolveUrl = (url) => {
   if (!url) return '#'
   if (url.startsWith('http')) return url
-  return `http://localhost:8000${url}`
+  // Jika URL sudah relatif (misal /media/...), biarkan saja.
+  // Browser akan otomatis menambahkan host saat ini (misal 100.x.x.x:5173)
+  // yang kemudian akan di-proxy ke backend.
+  return url
 }
 
 const addRange = () => {

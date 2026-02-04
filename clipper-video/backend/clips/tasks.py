@@ -3,6 +3,8 @@ from pathlib import Path
 
 from celery import shared_task
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 
 from .models import Job
 from .services import (
@@ -30,6 +32,25 @@ def update_job(job, **fields):
     for key, value in fields.items():
         setattr(job, key, value)
     job.save(update_fields=list(fields.keys()) + ['updated_at'])
+
+
+@shared_task
+def cleanup_old_jobs():
+    """
+    Delete job output folders older than JOB_RETENTION_DAYS.
+    This only removes files under MEDIA_ROOT/jobs/<job_id>/.
+    """
+    retention_days = getattr(settings, 'JOB_RETENTION_DAYS', 2)
+    cutoff = timezone.now() - timedelta(days=retention_days)
+    old_jobs = Job.objects.filter(created_at__lt=cutoff)
+    base_dir = Path(settings.MEDIA_ROOT) / 'jobs'
+    deleted = 0
+    for job in old_jobs:
+        job_dir = base_dir / str(job.id)
+        if job_dir.exists():
+            shutil.rmtree(job_dir, ignore_errors=True)
+            deleted += 1
+    return deleted
 
 
 @shared_task

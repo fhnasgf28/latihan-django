@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -130,6 +131,16 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+
+# Keep job outputs for at most N days (cleanup task will delete old folders).
+JOB_RETENTION_DAYS = 2
+
+CELERY_BEAT_SCHEDULE = {
+    'cleanup-old-jobs-daily': {
+        'task': 'clips.tasks.cleanup_old_jobs',
+        'schedule': timedelta(hours=24),
+    }
+}
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [
