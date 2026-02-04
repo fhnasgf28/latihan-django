@@ -91,6 +91,8 @@ Request JSON:
   "mode": "auto" | "manual",
   "interval_minutes": 3,
   "ranges": [{"start":"00:01:00","end":"00:02:30"}],
+  "max_clips": 0,
+  "download_sections": false,
   "strict_1080": true,
   "min_height_fallback": 720,
   "subtitle_langs": ["id","en"],
@@ -123,7 +125,7 @@ Menghasilkan zip semua output.
 
 ## Catatan
 - Max durasi video: 2 jam
-- Max jumlah clip: 60
+- Max jumlah clip: 60 (bisa batasi via `max_clips`). Opsi `download_sections` hanya download bagian clip yang dibutuhkan.
 - Valid URL: `youtube.com` atau `youtu.be`
 
 ## Jalankan Sekaligus (ringkas)

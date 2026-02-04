@@ -11,13 +11,14 @@ from .services import (
     has_height,
     build_format_selector,
     download_video,
+    download_section,
     download_subtitles,
     pick_subtitle_file,
     split_video,
     burn_subtitles,
 )
 from .srt_utils import write_trimmed_srt
-from .utils import parse_timecode
+from .utils import parse_timecode, parse_yt_dlp_progress
 
 MAX_DURATION_SECONDS = 2 * 60 * 60
 MAX_CLIPS = 60
@@ -76,21 +77,40 @@ def process_job(job_id):
         if len(ranges) > MAX_CLIPS:
             raise RuntimeError('Terlalu banyak clip. Maksimum 60 clip per job.')
 
+        max_clips = max(0, job.max_clips or 0)
+        if max_clips > 0:
+            ranges = ranges[: max_clips]
+
         job_dir = Path(settings.MEDIA_ROOT) / 'jobs' / str(job.id)
         work_dir = job_dir / 'work'
         job_dir.mkdir(parents=True, exist_ok=True)
         work_dir.mkdir(parents=True, exist_ok=True)
 
-        update_job(job, progress=20, message='Downloading video')
         selector = build_format_selector(job.strict_1080, job.min_height_fallback)
-        source_path = download_video(job.youtube_url, work_dir, selector)
+        source_path = None
+        if not job.download_sections:
+            last_reported = {'progress': 0}
 
-        update_job(job, progress=40, message='Splitting video')
-        clip_paths = split_video(source_path, ranges, work_dir, fast_copy=True)
+            def handle_download_line(line):
+                percent = parse_yt_dlp_progress(line)
+                if percent is None:
+                    return
+                scaled = 5 + int((percent / 100) * 15)
+                if scaled > last_reported['progress']:
+                    last_reported['progress'] = scaled
+                    update_job(job, progress=scaled, message=f'Downloading video {percent:.1f}%')
 
+            update_job(job, message='Downloading video 0%')
+            source_path = download_video(job.youtube_url, work_dir, selector, on_line=handle_download_line)
+            update_job(job, progress=20, message='Download complete')
+        else:
+            update_job(job, progress=20, message='Using download-sections (streaming)')
+
+        update_job(job, progress=40, message='Processing clips (streaming)')
+
+        subtitle_file = None
         if job.burn_subtitles:
             update_job(job, progress=60, message='Fetching subtitles')
-            subtitle_file = None
             try:
                 srt_files = download_subtitles(job.youtube_url, work_dir, job.subtitle_langs or ['id', 'en'])
                 subtitle_file = pick_subtitle_file(srt_files, job.subtitle_langs or ['id', 'en'])
@@ -99,34 +119,33 @@ def process_job(job_id):
             except Exception:
                 update_job(job, message='No subtitles available, proceeding without captions')
 
-            update_job(job, progress=70, message='Trimming subtitles')
-            subtitle_counts = []
-            for idx, (start, end) in enumerate(ranges, start=1):
+        total = len(ranges)
+        for idx, (start, end) in enumerate(ranges, start=1):
+            if job.download_sections:
+                clip_path = download_section(job.youtube_url, work_dir, selector, start, end, idx)
+            else:
+                fast_copy = not job.burn_subtitles
+                clip_paths = split_video(source_path, [(start, end)], work_dir, fast_copy=fast_copy)
+                clip_path = clip_paths[0]
+            output_video = job_dir / f'clip_{idx:03d}_caption.mp4'
+
+            if job.burn_subtitles and subtitle_file:
                 output_srt = job_dir / f'clip_{idx:03d}.srt'
-                if subtitle_file:
-                    try:
-                        count = write_trimmed_srt(subtitle_file, output_srt, start, end)
-                    except Exception:
-                        output_srt.write_text('', encoding='utf-8')
-                        count = 0
-                else:
+                try:
+                    count = write_trimmed_srt(subtitle_file, output_srt, start, end)
+                except Exception:
                     output_srt.write_text('', encoding='utf-8')
                     count = 0
-                subtitle_counts.append(count)
 
-            update_job(job, progress=90, message='Burning subtitles')
-            for idx, clip_path in enumerate(clip_paths, start=1):
-                output_srt = job_dir / f'clip_{idx:03d}.srt'
-                output_video = job_dir / f'clip_{idx:03d}_caption.mp4'
-                if subtitle_counts[idx - 1] > 0:
+                if count > 0:
                     burn_subtitles(clip_path, output_srt, output_video)
                 else:
                     shutil.copyfile(clip_path, output_video)
-        else:
-            update_job(job, progress=90, message='Finalizing clips (no subtitles)')
-            for idx, clip_path in enumerate(clip_paths, start=1):
-                output_video = job_dir / f'clip_{idx:03d}_caption.mp4'
+            else:
                 shutil.copyfile(clip_path, output_video)
+
+            progress = 40 + int((idx / total) * 50) if total else 90
+            update_job(job, progress=progress, message=f'Processing clip {idx}/{total}')
 
         update_job(job, status='done', progress=100, message='Done')
         shutil.rmtree(work_dir, ignore_errors=True)

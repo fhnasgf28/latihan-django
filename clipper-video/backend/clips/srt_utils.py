@@ -56,7 +56,24 @@ def trim_srt(content, clip_start, clip_end):
             'end': new_end,
             'text': entry['text'],
         })
-    return trimmed
+    return dedupe_entries(trimmed)
+
+
+def dedupe_entries(entries, gap_threshold=0.2):
+    cleaned = []
+    for entry in entries:
+        text = entry['text'].strip()
+        if not text:
+            continue
+        if cleaned and cleaned[-1]['text'] == text and entry['start'] <= cleaned[-1]['end'] + gap_threshold:
+            cleaned[-1]['end'] = max(cleaned[-1]['end'], entry['end'])
+            continue
+        cleaned.append({
+            'start': entry['start'],
+            'end': entry['end'],
+            'text': text,
+        })
+    return cleaned
 
 
 def render_srt(entries):

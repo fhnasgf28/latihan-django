@@ -77,6 +77,31 @@
         </div>
 
         <div>
+          <label class="text-sm font-medium text-slate-200">Maksimum clip diproses</label>
+          <div class="mt-2 flex items-center gap-3">
+            <input
+              v-model.number="form.max_clips"
+              type="number"
+              min="0"
+              max="60"
+              class="w-32 rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white"
+            />
+            <span class="text-xs text-slate-400">0 = proses semua</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-200">Mode download</label>
+          <div class="mt-2 flex items-center gap-3">
+            <label class="flex items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" v-model="form.download_sections" class="h-4 w-4 rounded border-white/20" />
+              Download sections (streaming)
+            </label>
+          </div>
+          <p class="mt-2 text-xs text-slate-400">Mode ini hanya download bagian clip yang dibutuhkan.</p>
+        </div>
+
+        <div>
           <label class="text-sm font-medium text-slate-200">Quality</label>
           <div class="mt-2 flex flex-wrap items-center gap-3">
             <label class="flex items-center gap-2 text-sm text-slate-300">
@@ -194,6 +219,8 @@ const form = ref({
   mode: 'auto',
   interval_minutes: 3,
   ranges: [{ start: '00:00:00', end: '00:01:00' }],
+  max_clips: 0,
+  download_sections: false,
   strict_1080: true,
   min_height_fallback: 720,
   burn_subtitles: false,
@@ -266,6 +293,8 @@ const buildPayload = () => ({
   mode: form.value.mode,
   interval_minutes: form.value.mode === 'auto' ? form.value.interval_minutes : null,
   ranges: form.value.mode === 'manual' ? form.value.ranges : null,
+  max_clips: form.value.max_clips,
+  download_sections: form.value.download_sections,
   strict_1080: form.value.strict_1080,
   min_height_fallback: form.value.strict_1080 ? 720 : form.value.min_height_fallback,
   burn_subtitles: form.value.burn_subtitles,

@@ -65,6 +65,8 @@ class JobCreateSerializer(serializers.ModelSerializer):
             'min_height_fallback',
             'subtitle_langs',
             'burn_subtitles',
+            'max_clips',
+            'download_sections',
         ]
 
     def validate_youtube_url(self, value):
@@ -84,6 +86,8 @@ class JobCreateSerializer(serializers.ModelSerializer):
         min_height_fallback = data.get('min_height_fallback', 720)
         subtitle_langs = data.get('subtitle_langs', ['id', 'en'])
         burn_subtitles = data.get('burn_subtitles', False)
+        max_clips = data.get('max_clips', 0)
+        download_sections = data.get('download_sections', False)
 
         if mode not in ['auto', 'manual']:
             raise serializers.ValidationError({'mode': 'Mode harus auto atau manual'})
@@ -111,6 +115,16 @@ class JobCreateSerializer(serializers.ModelSerializer):
         if not strict_1080 and min_height_fallback not in [720, 480]:
             raise serializers.ValidationError({'min_height_fallback': 'Fallback hanya 720 atau 480'})
 
+        if max_clips is not None:
+            if max_clips < 0:
+                raise serializers.ValidationError({'max_clips': 'max_clips tidak boleh negatif'})
+            if max_clips > 60:
+                raise serializers.ValidationError({'max_clips': 'max_clips maksimal 60'})
+
+        if download_sections and burn_subtitles:
+            # download-sections + burn subtitles bisa lebih lambat untuk banyak clip
+            pass
+
         if burn_subtitles and not subtitle_langs:
             data['subtitle_langs'] = ['id', 'en']
 
@@ -122,6 +136,10 @@ class JobCreateSerializer(serializers.ModelSerializer):
                 validated_data['subtitle_langs'] = ['id', 'en']
         if 'min_height_fallback' not in validated_data:
             validated_data['min_height_fallback'] = 720
+        if 'max_clips' not in validated_data:
+            validated_data['max_clips'] = 0
+        if 'download_sections' not in validated_data:
+            validated_data['download_sections'] = False
         return super().create(validated_data)
 
 
@@ -142,13 +160,19 @@ class JobDetailSerializer(serializers.ModelSerializer):
     def get_results(self, obj):
         from django.conf import settings
         from pathlib import Path
+        import re
 
         job_dir = Path(settings.MEDIA_ROOT) / 'jobs' / str(obj.id)
         if not job_dir.exists():
             return []
         results = []
+        max_clips = obj.max_clips or 0
         for path in sorted(job_dir.iterdir()):
             if path.is_file() and path.name != 'work':
+                if max_clips > 0:
+                    match = re.match(r'^clip_(\\d{3})', path.name)
+                    if match and int(match.group(1)) > max_clips:
+                        continue
                 results.append({
                     'filename': path.name,
                     'url': f"{settings.MEDIA_URL}jobs/{obj.id}/{path.name}",

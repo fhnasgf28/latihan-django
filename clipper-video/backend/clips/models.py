@@ -63,6 +63,8 @@ class Job(models.Model):
     min_height_fallback = models.IntegerField(default=720)
     subtitle_langs = models.JSONField(default=list)
     burn_subtitles = models.BooleanField(default=False)
+    max_clips = models.IntegerField(default=0)
+    download_sections = models.BooleanField(default=False)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='queued')
     progress = models.IntegerField(default=0)
     message = models.TextField(blank=True, default='')

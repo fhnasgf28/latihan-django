@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from .utils import run_command, escape_ffmpeg_path
+from .utils import run_command, run_command_stream, escape_ffmpeg_path, format_timecode
 
 
 def fetch_video_info(url):
@@ -28,17 +28,19 @@ def build_format_selector(strict_1080, min_height_fallback):
     )
 
 
-def download_video(url, work_dir, selector):
+def download_video(url, work_dir, selector, on_line=None):
     work_dir = Path(work_dir)
     output_template = str(work_dir / 'source.%(ext)s')
-    run_command([
+    run_command_stream([
         'yt-dlp',
+        '--newline',
+        '--progress',
         '-f', selector,
         '--merge-output-format', 'mp4',
         '--no-playlist',
         '-o', output_template,
         url,
-    ])
+    ], on_line=on_line)
     source_path = work_dir / 'source.mp4'
     if not source_path.exists():
         matches = list(work_dir.glob('source.*'))
@@ -47,6 +49,29 @@ def download_video(url, work_dir, selector):
     if not source_path.exists():
         raise RuntimeError('Download video gagal: file output tidak ditemukan')
     return source_path
+
+
+def download_section(url, work_dir, selector, start, end, index):
+    work_dir = Path(work_dir)
+    output_template = str(work_dir / f'section_{index:03d}.%(ext)s')
+    section = f"*{format_timecode(start)}-{format_timecode(end)}"
+    run_command([
+        'yt-dlp',
+        '--download-sections', section,
+        '-f', selector,
+        '--merge-output-format', 'mp4',
+        '--no-playlist',
+        '-o', output_template,
+        url,
+    ])
+    section_path = work_dir / f'section_{index:03d}.mp4'
+    if not section_path.exists():
+        matches = list(work_dir.glob(f'section_{index:03d}.*'))
+        if matches:
+            section_path = matches[0]
+    if not section_path.exists():
+        raise RuntimeError('Download section gagal: file output tidak ditemukan')
+    return section_path
 
 
 def download_subtitles(url, work_dir, langs):
