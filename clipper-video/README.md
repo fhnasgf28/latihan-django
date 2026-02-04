@@ -8,7 +8,7 @@ Aplikasi lokal untuk membuat clip dari video YouTube plus burn-in subtitle. Diba
 - Input URL YouTube
 - Mode **Auto-split** (tiap N menit) atau **Manual ranges** (HH:MM:SS)
 - Kualitas minimum: **Strict 1080p** atau fallback ke 720p/480p
-- Subtitle: ambil official dulu lalu auto-subs, pilihan bahasa (default id lalu en)
+- Subtitle: optional burn-in (default OFF), ambil official dulu lalu auto-subs, pilihan bahasa (default id lalu en)
 - Job async di background (Celery + Redis)
 - Progress + status + hasil download
 
@@ -93,7 +93,8 @@ Request JSON:
   "ranges": [{"start":"00:01:00","end":"00:02:30"}],
   "strict_1080": true,
   "min_height_fallback": 720,
-  "subtitle_langs": ["id","en"]
+  "subtitle_langs": ["id","en"],
+  "burn_subtitles": false
 }
 ```
 Response:
@@ -130,4 +131,3 @@ Menghasilkan zip semua output.
 2. `python manage.py runserver`
 3. `celery -A clipper worker -l info`
 4. `npm run dev`
-

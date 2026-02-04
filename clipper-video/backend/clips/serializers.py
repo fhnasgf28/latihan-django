@@ -64,6 +64,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
             'strict_1080',
             'min_height_fallback',
             'subtitle_langs',
+            'burn_subtitles',
         ]
 
     def validate_youtube_url(self, value):
@@ -82,6 +83,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
         strict_1080 = data.get('strict_1080', False)
         min_height_fallback = data.get('min_height_fallback', 720)
         subtitle_langs = data.get('subtitle_langs', ['id', 'en'])
+        burn_subtitles = data.get('burn_subtitles', False)
 
         if mode not in ['auto', 'manual']:
             raise serializers.ValidationError({'mode': 'Mode harus auto atau manual'})
@@ -109,14 +111,15 @@ class JobCreateSerializer(serializers.ModelSerializer):
         if not strict_1080 and min_height_fallback not in [720, 480]:
             raise serializers.ValidationError({'min_height_fallback': 'Fallback hanya 720 atau 480'})
 
-        if not subtitle_langs:
+        if burn_subtitles and not subtitle_langs:
             data['subtitle_langs'] = ['id', 'en']
 
         return data
 
     def create(self, validated_data):
-        if 'subtitle_langs' not in validated_data or not validated_data['subtitle_langs']:
-            validated_data['subtitle_langs'] = ['id', 'en']
+        if validated_data.get('burn_subtitles'):
+            if 'subtitle_langs' not in validated_data or not validated_data['subtitle_langs']:
+                validated_data['subtitle_langs'] = ['id', 'en']
         if 'min_height_fallback' not in validated_data:
             validated_data['min_height_fallback'] = 720
         return super().create(validated_data)

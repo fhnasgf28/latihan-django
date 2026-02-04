@@ -85,12 +85,28 @@ def pick_subtitle_file(srt_files, langs):
     return srt_files[0]
 
 
-def split_video(source_path, ranges, work_dir):
+def split_video(source_path, ranges, work_dir, fast_copy=True):
     clips = []
     work_dir = Path(work_dir)
     for idx, (start, end) in enumerate(ranges, start=1):
         duration = max(0, end - start)
         clip_path = work_dir / f'clip_{idx:03d}.mp4'
+        if fast_copy:
+            try:
+                run_command([
+                    'ffmpeg',
+                    '-y',
+                    '-ss', str(start),
+                    '-i', str(source_path),
+                    '-t', str(duration),
+                    '-c', 'copy',
+                    '-movflags', '+faststart',
+                    str(clip_path),
+                ])
+                clips.append(clip_path)
+                continue
+            except Exception:
+                pass
         run_command([
             'ffmpeg',
             '-y',

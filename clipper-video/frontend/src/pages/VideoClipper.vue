@@ -1,132 +1,180 @@
 <template>
-  <section class="clipper">
-    <div class="form-card">
-      <h2>Mulai Job</h2>
-      <p class="muted">Semua proses berjalan lokal via Celery + ffmpeg + yt-dlp.</p>
-
-      <div class="field">
-        <label>URL YouTube</label>
-        <input
-          v-model.trim="form.youtube_url"
-          type="text"
-          placeholder="https://www.youtube.com/watch?v=..."
-        />
+  <section class="mt-10 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+    <div class="glass rounded-3xl p-6 md:p-8">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-semibold text-white">Mulai Job</h2>
+          <p class="mt-2 text-sm text-slate-300">Lebih cepat dengan opsi burn subtitle yang bisa dimatikan.</p>
+        </div>
+        <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs text-emerald-200">Local</span>
       </div>
 
-      <div class="field">
-        <label>Mode</label>
-        <div class="toggle">
-          <button
-            :class="{ active: form.mode === 'auto' }"
-            type="button"
-            @click="form.mode = 'auto'"
-          >
-            Auto Split
-          </button>
-          <button
-            :class="{ active: form.mode === 'manual' }"
-            type="button"
-            @click="form.mode = 'manual'"
-          >
-            Manual Ranges
-          </button>
+      <div class="mt-6 space-y-5">
+        <div>
+          <label class="text-sm font-medium text-slate-200">URL YouTube</label>
+          <input
+            v-model.trim="form.youtube_url"
+            type="text"
+            placeholder="https://www.youtube.com/watch?v=..."
+            class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white placeholder:text-slate-500"
+          />
         </div>
-      </div>
 
-      <div v-if="form.mode === 'auto'" class="field">
-        <label>Interval (menit)</label>
-        <input v-model.number="form.interval_minutes" type="number" min="1" />
-      </div>
-
-      <div v-else class="ranges">
-        <div class="ranges-header">
-          <label>Ranges (HH:MM:SS)</label>
-          <button type="button" class="ghost" @click="addRange">Tambah Range</button>
-        </div>
-        <div class="range-row" v-for="(range, index) in form.ranges" :key="index">
-          <input v-model.trim="range.start" type="text" placeholder="00:00:00" />
-          <span>to</span>
-          <input v-model.trim="range.end" type="text" placeholder="00:00:30" />
-          <button
-            v-if="form.ranges.length > 1"
-            type="button"
-            class="ghost"
-            @click="removeRange(index)"
-          >
-            Hapus
-          </button>
-        </div>
-      </div>
-
-      <div class="field">
-        <label>Quality</label>
-        <div class="checkbox-row">
-          <input id="strict1080" type="checkbox" v-model="form.strict_1080" />
-          <label for="strict1080">Strict 1080p (fail kalau tidak tersedia)</label>
-        </div>
-        <div v-if="!form.strict_1080" class="fallback">
-          <label>Fallback minimum</label>
-          <select v-model.number="form.min_height_fallback">
-            <option :value="720">720p</option>
-            <option :value="480">480p</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="field">
-        <label>Subtitle Priority</label>
-        <div class="subtitle-grid">
-          <div>
-            <span class="muted">Primary</span>
-            <select v-model="form.subtitle_primary">
-              <option value="id">Bahasa Indonesia</option>
-              <option value="en">English</option>
-            </select>
+        <div>
+          <label class="text-sm font-medium text-slate-200">Mode</label>
+          <div class="mt-2 inline-flex rounded-full bg-slate-900/80 p-1">
+            <button
+              type="button"
+              class="rounded-full px-4 py-2 text-sm"
+              :class="form.mode === 'auto' ? 'bg-white text-slate-900' : 'text-slate-300'"
+              @click="form.mode = 'auto'"
+            >
+              Auto Split
+            </button>
+            <button
+              type="button"
+              class="rounded-full px-4 py-2 text-sm"
+              :class="form.mode === 'manual' ? 'bg-white text-slate-900' : 'text-slate-300'"
+              @click="form.mode = 'manual'"
+            >
+              Manual Ranges
+            </button>
           </div>
-          <div>
-            <span class="muted">Fallback</span>
-            <div class="checkbox-row">
-              <input id="fallback" type="checkbox" v-model="form.subtitle_fallback_enabled" />
-              <label for="fallback">Aktifkan</label>
+        </div>
+
+        <div v-if="form.mode === 'auto'">
+          <label class="text-sm font-medium text-slate-200">Interval (menit)</label>
+          <input
+            v-model.number="form.interval_minutes"
+            type="number"
+            min="1"
+            class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white"
+          />
+        </div>
+
+        <div v-else>
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-medium text-slate-200">Ranges (HH:MM:SS)</label>
+            <button type="button" class="text-xs font-semibold text-sky-300" @click="addRange">
+              Tambah Range
+            </button>
+          </div>
+          <div class="mt-3 space-y-3">
+            <div v-for="(range, index) in form.ranges" :key="index" class="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2">
+              <input v-model.trim="range.start" type="text" placeholder="00:00:00" class="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white" />
+              <span class="text-xs text-slate-400">to</span>
+              <input v-model.trim="range.end" type="text" placeholder="00:00:30" class="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white" />
+              <button
+                v-if="form.ranges.length > 1"
+                type="button"
+                class="text-xs text-rose-300"
+                @click="removeRange(index)"
+              >
+                Hapus
+              </button>
             </div>
-            <select v-model="form.subtitle_fallback" :disabled="!form.subtitle_fallback_enabled">
-              <option value="en">English</option>
-              <option value="id">Bahasa Indonesia</option>
-            </select>
           </div>
         </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-200">Quality</label>
+          <div class="mt-2 flex flex-wrap items-center gap-3">
+            <label class="flex items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" v-model="form.strict_1080" class="h-4 w-4 rounded border-white/20" />
+              Strict 1080p
+            </label>
+            <div v-if="!form.strict_1080" class="flex items-center gap-2">
+              <span class="text-xs text-slate-400">Fallback</span>
+              <select v-model.number="form.min_height_fallback" class="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-xs text-white">
+                <option :value="720">720p</option>
+                <option :value="480">480p</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-200">Subtitle</label>
+          <div class="mt-2 flex items-center gap-3">
+            <label class="flex items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" v-model="form.burn_subtitles" class="h-4 w-4 rounded border-white/20" />
+              Burn subtitle (lebih lama)
+            </label>
+          </div>
+          <div class="mt-3 grid gap-3 md:grid-cols-2" :class="!form.burn_subtitles ? 'opacity-50' : ''">
+            <div>
+              <span class="text-xs text-slate-400">Primary</span>
+              <select v-model="form.subtitle_primary" :disabled="!form.burn_subtitles" class="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white">
+                <option value="id">Bahasa Indonesia</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <div>
+              <span class="text-xs text-slate-400">Fallback</span>
+              <div class="mt-2 flex items-center gap-2">
+                <input id="fallback" type="checkbox" v-model="form.subtitle_fallback_enabled" :disabled="!form.burn_subtitles" class="h-4 w-4 rounded border-white/20" />
+                <label for="fallback" class="text-xs text-slate-300">Aktifkan</label>
+              </div>
+              <select
+                v-model="form.subtitle_fallback"
+                :disabled="!form.burn_subtitles || !form.subtitle_fallback_enabled"
+                class="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+              >
+                <option value="en">English</option>
+                <option value="id">Bahasa Indonesia</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <button
+          class="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
+          type="button"
+          @click="submitJob"
+          :disabled="loading"
+        >
+          {{ loading ? 'Mengirim...' : 'Jalankan Job' }}
+        </button>
+
+        <p v-if="error" class="text-sm font-semibold text-rose-300">{{ error }}</p>
       </div>
-
-      <button class="primary" type="button" @click="submitJob" :disabled="loading">
-        {{ loading ? 'Mengirim...' : 'Jalankan Job' }}
-      </button>
-
-      <p v-if="error" class="error">{{ error }}</p>
     </div>
 
-    <div class="status-card">
-      <h2>Status</h2>
-      <div v-if="!job" class="muted">Belum ada job berjalan.</div>
+    <div class="glass rounded-3xl p-6 md:p-8">
+      <h2 class="text-2xl font-semibold text-white">Status</h2>
+      <p v-if="!job" class="mt-3 text-sm text-slate-400">Belum ada job berjalan.</p>
 
-      <div v-else class="status-body">
-        <div class="status-line">
-          <span class="pill" :class="job.status">{{ job.status }}</span>
-          <span class="muted">Job ID: {{ jobId }}</span>
+      <div v-else class="mt-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="rounded-full px-3 py-1 text-xs uppercase tracking-widest" :class="statusClass">
+            {{ job.status }}
+          </span>
+          <span class="text-xs text-slate-400">Job ID: {{ jobId }}</span>
         </div>
-        <p class="message">{{ job.message }}</p>
-        <div class="progress">
-          <div class="progress-bar" :style="{ width: `${job.progress}%` }"></div>
-        </div>
-        <div v-if="job.error" class="error">{{ job.error }}</div>
+        <p class="text-sm text-slate-200">{{ job.message }}</p>
 
-        <div v-if="job.results && job.results.length" class="results">
-          <div class="results-header">
-            <h3>Outputs</h3>
-            <a class="ghost" :href="zipUrl" target="_blank" rel="noreferrer">Download ZIP</a>
+        <div class="flex items-center justify-between text-xs text-slate-300">
+          <span>Progress</span>
+          <span class="font-semibold">{{ numericProgress }}%</span>
+        </div>
+        <div class="h-2 rounded-full bg-slate-800">
+          <div class="h-2 rounded-full bg-gradient-to-r from-sky-400 via-purple-400 to-emerald-400" :style="{ width: `${numericProgress}%` }"></div>
+        </div>
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span>Estimasi waktu</span>
+          <span>{{ etaText }}</span>
+        </div>
+
+        <p v-if="job.error" class="text-sm font-semibold text-rose-300">{{ job.error }}</p>
+
+        <div v-if="job.results && job.results.length" class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold text-white">Outputs</h3>
+            <a :href="zipUrl" target="_blank" rel="noreferrer" class="text-xs text-sky-300">Download ZIP</a>
           </div>
-          <ul>
+          <ul class="space-y-2 text-sm text-slate-200">
             <li v-for="file in job.results" :key="file.filename">
-              <a :href="resolveUrl(file.url)" target="_blank" rel="noreferrer">
+              <a :href="resolveUrl(file.url)" target="_blank" rel="noreferrer" class="hover:text-white">
                 {{ file.filename }}
               </a>
             </li>
@@ -148,6 +196,7 @@ const form = ref({
   ranges: [{ start: '00:00:00', end: '00:01:00' }],
   strict_1080: true,
   min_height_fallback: 720,
+  burn_subtitles: false,
   subtitle_primary: 'id',
   subtitle_fallback_enabled: true,
   subtitle_fallback: 'en'
@@ -158,6 +207,7 @@ const job = ref(null)
 const loading = ref(false)
 const error = ref('')
 const polling = ref(null)
+const progressPoints = ref([])
 
 const zipUrl = computed(() => (jobId.value ? jobAPI.downloadZipUrl(jobId.value) : '#'))
 
@@ -169,6 +219,32 @@ const subtitleLangs = computed(() => {
     }
   }
   return langs
+})
+
+const statusClass = computed(() => {
+  if (!job.value) return 'bg-slate-800 text-slate-300'
+  if (job.value.status === 'done') return 'bg-emerald-500/20 text-emerald-200'
+  if (job.value.status === 'failed') return 'bg-rose-500/20 text-rose-200'
+  if (job.value.status === 'running') return 'bg-sky-500/20 text-sky-200'
+  return 'bg-amber-500/20 text-amber-200'
+})
+
+const numericProgress = computed(() => {
+  if (!job.value || typeof job.value.progress !== 'number') return 0
+  return Math.min(100, Math.max(0, Math.round(job.value.progress)))
+})
+
+const etaText = computed(() => {
+  if (!job.value) return '-'
+  if (job.value.status === 'done') return 'Selesai'
+  if (job.value.status === 'failed') return '-'
+  const estimate = estimateEtaSeconds()
+  if (estimate == null || estimate === Infinity) return 'Menghitung...'
+  if (estimate < 10) return '< 10 detik'
+  const minutes = Math.floor(estimate / 60)
+  const seconds = Math.round(estimate % 60)
+  if (minutes > 0) return `${minutes}m ${seconds}s`
+  return `${seconds}s`
 })
 
 const resolveUrl = (url) => {
@@ -192,8 +268,38 @@ const buildPayload = () => ({
   ranges: form.value.mode === 'manual' ? form.value.ranges : null,
   strict_1080: form.value.strict_1080,
   min_height_fallback: form.value.strict_1080 ? 720 : form.value.min_height_fallback,
-  subtitle_langs: subtitleLangs.value
+  burn_subtitles: form.value.burn_subtitles,
+  subtitle_langs: form.value.burn_subtitles ? subtitleLangs.value : []
 })
+
+const resetProgress = () => {
+  progressPoints.value = []
+}
+
+const recordProgress = (progress) => {
+  if (typeof progress !== 'number') return
+  const now = Date.now()
+  const last = progressPoints.value[progressPoints.value.length - 1]
+  if (last && Math.round(last.progress) === Math.round(progress)) {
+    return
+  }
+  progressPoints.value.push({ time: now, progress })
+  if (progressPoints.value.length > 6) {
+    progressPoints.value.shift()
+  }
+}
+
+const estimateEtaSeconds = () => {
+  if (progressPoints.value.length < 2) return null
+  const first = progressPoints.value[0]
+  const last = progressPoints.value[progressPoints.value.length - 1]
+  const deltaProgress = last.progress - first.progress
+  const deltaTime = (last.time - first.time) / 1000
+  if (deltaProgress <= 0 || deltaTime <= 0) return null
+  const rate = deltaProgress / deltaTime
+  const remaining = Math.max(0, 100 - last.progress)
+  return remaining / rate
+}
 
 const submitJob = async () => {
   error.value = ''
@@ -206,6 +312,7 @@ const submitJob = async () => {
     const response = await jobAPI.create(buildPayload())
     jobId.value = response.data.id
     job.value = { status: response.data.status, progress: 0, message: 'Queued', error: null }
+    resetProgress()
     startPolling()
   } catch (err) {
     error.value = err.response?.data?.detail || err.response?.data?.error || err.message
@@ -219,6 +326,7 @@ const fetchJob = async () => {
   try {
     const response = await jobAPI.get(jobId.value)
     job.value = response.data
+    recordProgress(response.data.progress)
     if (['done', 'failed'].includes(job.value.status)) {
       stopPolling()
     }
@@ -243,229 +351,3 @@ const stopPolling = () => {
 
 onBeforeUnmount(stopPolling)
 </script>
-
-<style scoped>
-.clipper {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  gap: 24px;
-}
-
-.form-card,
-.status-card {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 24px;
-  padding: 24px;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(8px);
-}
-
-h2 {
-  margin: 0 0 8px;
-}
-
-.field {
-  margin-bottom: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-label {
-  font-weight: 600;
-}
-
-input[type='text'],
-input[type='number'],
-select {
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid #d0d7e2;
-  font-size: 14px;
-  background: #fff;
-}
-
-.toggle {
-  display: inline-flex;
-  gap: 8px;
-  background: #eef2ff;
-  padding: 6px;
-  border-radius: 999px;
-}
-
-.toggle button {
-  border: none;
-  background: transparent;
-  padding: 8px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.toggle button.active {
-  background: #111827;
-  color: #fff;
-}
-
-.ranges {
-  margin-bottom: 18px;
-}
-
-.ranges-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.range-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr auto;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.checkbox-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.fallback {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.subtitle-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-}
-
-.primary {
-  width: 100%;
-  padding: 12px 16px;
-  background: #111827;
-  color: #fff;
-  border: none;
-  border-radius: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(17, 24, 39, 0.2);
-}
-
-.primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.ghost {
-  background: transparent;
-  border: 1px dashed #c7d2fe;
-  color: #4f46e5;
-  padding: 6px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.status-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.status-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.pill {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.pill.queued {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.pill.running {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.pill.done {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.pill.failed {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.progress {
-  background: #e5e7eb;
-  border-radius: 999px;
-  height: 10px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  background: linear-gradient(90deg, #fb7185, #facc15, #34d399);
-  height: 100%;
-  transition: width 0.4s ease;
-}
-
-.results ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.results a {
-  color: #111827;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.results a:hover {
-  text-decoration: underline;
-}
-
-.muted {
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.message {
-  margin: 0;
-}
-
-.error {
-  color: #b91c1c;
-  font-weight: 600;
-}
-
-@media (max-width: 900px) {
-  .clipper {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

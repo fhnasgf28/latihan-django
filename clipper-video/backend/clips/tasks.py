@@ -86,40 +86,46 @@ def process_job(job_id):
         source_path = download_video(job.youtube_url, work_dir, selector)
 
         update_job(job, progress=40, message='Splitting video')
-        clip_paths = split_video(source_path, ranges, work_dir)
+        clip_paths = split_video(source_path, ranges, work_dir, fast_copy=True)
 
-        update_job(job, progress=60, message='Fetching subtitles')
-        subtitle_file = None
-        try:
-            srt_files = download_subtitles(job.youtube_url, work_dir, job.subtitle_langs or ['id', 'en'])
-            subtitle_file = pick_subtitle_file(srt_files, job.subtitle_langs or ['id', 'en'])
-            if not subtitle_file:
+        if job.burn_subtitles:
+            update_job(job, progress=60, message='Fetching subtitles')
+            subtitle_file = None
+            try:
+                srt_files = download_subtitles(job.youtube_url, work_dir, job.subtitle_langs or ['id', 'en'])
+                subtitle_file = pick_subtitle_file(srt_files, job.subtitle_langs or ['id', 'en'])
+                if not subtitle_file:
+                    update_job(job, message='No subtitles available, proceeding without captions')
+            except Exception:
                 update_job(job, message='No subtitles available, proceeding without captions')
-        except Exception:
-            update_job(job, message='No subtitles available, proceeding without captions')
 
-        update_job(job, progress=70, message='Trimming subtitles')
-        subtitle_counts = []
-        for idx, (start, end) in enumerate(ranges, start=1):
-            output_srt = job_dir / f'clip_{idx:03d}.srt'
-            if subtitle_file:
-                try:
-                    count = write_trimmed_srt(subtitle_file, output_srt, start, end)
-                except Exception:
+            update_job(job, progress=70, message='Trimming subtitles')
+            subtitle_counts = []
+            for idx, (start, end) in enumerate(ranges, start=1):
+                output_srt = job_dir / f'clip_{idx:03d}.srt'
+                if subtitle_file:
+                    try:
+                        count = write_trimmed_srt(subtitle_file, output_srt, start, end)
+                    except Exception:
+                        output_srt.write_text('', encoding='utf-8')
+                        count = 0
+                else:
                     output_srt.write_text('', encoding='utf-8')
                     count = 0
-            else:
-                output_srt.write_text('', encoding='utf-8')
-                count = 0
-            subtitle_counts.append(count)
+                subtitle_counts.append(count)
 
-        update_job(job, progress=90, message='Burning subtitles')
-        for idx, clip_path in enumerate(clip_paths, start=1):
-            output_srt = job_dir / f'clip_{idx:03d}.srt'
-            output_video = job_dir / f'clip_{idx:03d}_caption.mp4'
-            if subtitle_counts[idx - 1] > 0:
-                burn_subtitles(clip_path, output_srt, output_video)
-            else:
+            update_job(job, progress=90, message='Burning subtitles')
+            for idx, clip_path in enumerate(clip_paths, start=1):
+                output_srt = job_dir / f'clip_{idx:03d}.srt'
+                output_video = job_dir / f'clip_{idx:03d}_caption.mp4'
+                if subtitle_counts[idx - 1] > 0:
+                    burn_subtitles(clip_path, output_srt, output_video)
+                else:
+                    shutil.copyfile(clip_path, output_video)
+        else:
+            update_job(job, progress=90, message='Finalizing clips (no subtitles)')
+            for idx, clip_path in enumerate(clip_paths, start=1):
+                output_video = job_dir / f'clip_{idx:03d}_caption.mp4'
                 shutil.copyfile(clip_path, output_video)
 
         update_job(job, status='done', progress=100, message='Done')
