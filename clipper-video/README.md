@@ -8,7 +8,7 @@ Aplikasi lokal untuk membuat clip dari video YouTube plus burn-in subtitle. Diba
 - Input URL YouTube
 - Mode **Auto-split** (tiap N menit) atau **Manual ranges** (HH:MM:SS)
 - Kualitas minimum: **Strict 1080p** atau fallback ke 720p/480p
-- Subtitle: optional burn-in (default OFF), ambil official dulu lalu auto-subs, pilihan bahasa (default id lalu en)
+- Subtitle: optional burn-in (default OFF), ambil official dulu lalu auto-subs, pilihan bahasa (default id lalu en). Jika tidak ada, bisa auto captions (Whisper) lokal.
 - Job async di background (Celery + Redis)
 - Progress + status + hasil download
 
@@ -52,6 +52,10 @@ python manage.py runserver
 ```
 Backend berjalan di `http://localhost:8000`
 
+Catatan auto captions:
+- Fitur auto captions memakai `faster-whisper` (sudah di `requirements.txt`).
+- Jika ingin lebih cepat, gunakan model `tiny` di UI.
+
 ### 3) Redis
 ```
 redis-server
@@ -93,10 +97,14 @@ Request JSON:
   "ranges": [{"start":"00:01:00","end":"00:02:30"}],
   "max_clips": 0,
   "download_sections": false,
+  "orientation": "landscape",
   "strict_1080": true,
   "min_height_fallback": 720,
   "subtitle_langs": ["id","en"],
-  "burn_subtitles": false
+  "burn_subtitles": false,
+  "auto_captions": false,
+  "auto_caption_lang": "id",
+  "whisper_model": "tiny"
 }
 ```
 Response:
@@ -125,7 +133,7 @@ Menghasilkan zip semua output.
 
 ## Catatan
 - Max durasi video: 2 jam
-- Max jumlah clip: 60 (bisa batasi via `max_clips`). Opsi `download_sections` hanya download bagian clip yang dibutuhkan.
+- Max jumlah clip: 60 (bisa batasi via `max_clips`). Opsi `download_sections` hanya download bagian clip yang dibutuhkan. `orientation=portrait` akan lebih lambat karena re-encode.
 - Valid URL: `youtube.com` atau `youtu.be`
 
 ## Jalankan Sekaligus (ringkas)

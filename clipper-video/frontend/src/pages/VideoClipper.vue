@@ -102,6 +102,29 @@
         </div>
 
         <div>
+          <label class="text-sm font-medium text-slate-200">Orientasi output</label>
+          <div class="mt-2 inline-flex rounded-full bg-slate-900/80 p-1">
+            <button
+              type="button"
+              class="rounded-full px-4 py-2 text-sm"
+              :class="form.orientation === 'landscape' ? 'bg-white text-slate-900' : 'text-slate-300'"
+              @click="form.orientation = 'landscape'"
+            >
+              Landscape (16:9)
+            </button>
+            <button
+              type="button"
+              class="rounded-full px-4 py-2 text-sm"
+              :class="form.orientation === 'portrait' ? 'bg-white text-slate-900' : 'text-slate-300'"
+              @click="form.orientation = 'portrait'"
+            >
+              Portrait (9:16)
+            </button>
+          </div>
+          <p class="mt-2 text-xs text-slate-400">Portrait akan lebih lambat karena perlu re-encode.</p>
+        </div>
+
+        <div>
           <label class="text-sm font-medium text-slate-200">Quality</label>
           <div class="mt-2 flex flex-wrap items-center gap-3">
             <label class="flex items-center gap-2 text-sm text-slate-300">
@@ -125,6 +148,37 @@
               <input type="checkbox" v-model="form.burn_subtitles" class="h-4 w-4 rounded border-white/20" />
               Burn subtitle (lebih lama)
             </label>
+          </div>
+          <div class="mt-3 flex items-center gap-3">
+            <label class="flex items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" v-model="form.auto_captions" class="h-4 w-4 rounded border-white/20" />
+              Auto captions jika tidak ada di YouTube
+            </label>
+          </div>
+          <div class="mt-3 grid gap-3 md:grid-cols-2" :class="!form.auto_captions ? 'opacity-50' : ''">
+            <div>
+              <span class="text-xs text-slate-400">Whisper model</span>
+              <select
+                v-model="form.whisper_model"
+                :disabled="!form.auto_captions"
+                class="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+              >
+                <option value="tiny">Tiny (paling cepat)</option>
+                <option value="base">Base</option>
+                <option value="small">Small</option>
+              </select>
+            </div>
+            <div>
+              <span class="text-xs text-slate-400">Auto caption lang</span>
+              <select
+                v-model="form.auto_caption_lang"
+                :disabled="!form.auto_captions"
+                class="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+              >
+                <option value="id">Bahasa Indonesia</option>
+                <option value="en">English</option>
+              </select>
+            </div>
           </div>
           <div class="mt-3 grid gap-3 md:grid-cols-2" :class="!form.burn_subtitles ? 'opacity-50' : ''">
             <div>
@@ -221,9 +275,13 @@ const form = ref({
   ranges: [{ start: '00:00:00', end: '00:01:00' }],
   max_clips: 0,
   download_sections: false,
+  orientation: 'landscape',
   strict_1080: true,
   min_height_fallback: 720,
   burn_subtitles: false,
+  auto_captions: false,
+  auto_caption_lang: 'id',
+  whisper_model: 'tiny',
   subtitle_primary: 'id',
   subtitle_fallback_enabled: true,
   subtitle_fallback: 'en'
@@ -295,10 +353,14 @@ const buildPayload = () => ({
   ranges: form.value.mode === 'manual' ? form.value.ranges : null,
   max_clips: form.value.max_clips,
   download_sections: form.value.download_sections,
+  orientation: form.value.orientation,
   strict_1080: form.value.strict_1080,
   min_height_fallback: form.value.strict_1080 ? 720 : form.value.min_height_fallback,
   burn_subtitles: form.value.burn_subtitles,
-  subtitle_langs: form.value.burn_subtitles ? subtitleLangs.value : []
+  auto_captions: form.value.auto_captions,
+  auto_caption_lang: form.value.auto_caption_lang,
+  whisper_model: form.value.whisper_model,
+  subtitle_langs: (form.value.burn_subtitles || form.value.auto_captions) ? subtitleLangs.value : []
 })
 
 const resetProgress = () => {

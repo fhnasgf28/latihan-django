@@ -157,3 +157,16 @@ def burn_subtitles(clip_path, srt_path, output_path):
         '-c:a', 'copy',
         str(output_path),
     ])
+
+
+def convert_to_portrait(input_path, output_path):
+    run_command([
+        'ffmpeg',
+        '-y',
+        '-i', str(input_path),
+        '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
+        '-movflags', '+faststart',
+        str(output_path),
+    ])

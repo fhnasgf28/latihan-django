@@ -65,6 +65,10 @@ class JobCreateSerializer(serializers.ModelSerializer):
             'min_height_fallback',
             'subtitle_langs',
             'burn_subtitles',
+            'auto_captions',
+            'auto_caption_lang',
+            'whisper_model',
+            'orientation',
             'max_clips',
             'download_sections',
         ]
@@ -86,6 +90,10 @@ class JobCreateSerializer(serializers.ModelSerializer):
         min_height_fallback = data.get('min_height_fallback', 720)
         subtitle_langs = data.get('subtitle_langs', ['id', 'en'])
         burn_subtitles = data.get('burn_subtitles', False)
+        auto_captions = data.get('auto_captions', False)
+        auto_caption_lang = data.get('auto_caption_lang', 'id')
+        whisper_model = data.get('whisper_model', 'tiny')
+        orientation = data.get('orientation', 'landscape')
         max_clips = data.get('max_clips', 0)
         download_sections = data.get('download_sections', False)
 
@@ -125,13 +133,22 @@ class JobCreateSerializer(serializers.ModelSerializer):
             # download-sections + burn subtitles bisa lebih lambat untuk banyak clip
             pass
 
-        if burn_subtitles and not subtitle_langs:
+        if (burn_subtitles or auto_captions) and not subtitle_langs:
             data['subtitle_langs'] = ['id', 'en']
+
+        if auto_captions and auto_caption_lang not in ['id', 'en']:
+            raise serializers.ValidationError({'auto_caption_lang': 'auto_caption_lang harus id atau en'})
+
+        if whisper_model not in ['tiny', 'base', 'small']:
+            raise serializers.ValidationError({'whisper_model': 'whisper_model harus tiny/base/small'})
+
+        if orientation not in ['landscape', 'portrait']:
+            raise serializers.ValidationError({'orientation': 'orientation harus landscape atau portrait'})
 
         return data
 
     def create(self, validated_data):
-        if validated_data.get('burn_subtitles'):
+        if validated_data.get('burn_subtitles') or validated_data.get('auto_captions'):
             if 'subtitle_langs' not in validated_data or not validated_data['subtitle_langs']:
                 validated_data['subtitle_langs'] = ['id', 'en']
         if 'min_height_fallback' not in validated_data:
@@ -140,6 +157,14 @@ class JobCreateSerializer(serializers.ModelSerializer):
             validated_data['max_clips'] = 0
         if 'download_sections' not in validated_data:
             validated_data['download_sections'] = False
+        if 'auto_captions' not in validated_data:
+            validated_data['auto_captions'] = False
+        if 'auto_caption_lang' not in validated_data:
+            validated_data['auto_caption_lang'] = 'id'
+        if 'whisper_model' not in validated_data:
+            validated_data['whisper_model'] = 'tiny'
+        if 'orientation' not in validated_data:
+            validated_data['orientation'] = 'landscape'
         return super().create(validated_data)
 
 

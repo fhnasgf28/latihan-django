@@ -6,3 +6,4 @@ Pillow==10.4.0
 celery==5.4.0
 redis==5.0.8
 yt-dlp
+faster-whisper

@@ -54,6 +54,11 @@ class Job(models.Model):
         ('manual', 'Manual'),
     ]
 
+    ORIENTATION_CHOICES = [
+        ('landscape', 'Landscape'),
+        ('portrait', 'Portrait'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     youtube_url = models.TextField()
     mode = models.CharField(max_length=10, choices=MODE_CHOICES)
@@ -63,6 +68,10 @@ class Job(models.Model):
     min_height_fallback = models.IntegerField(default=720)
     subtitle_langs = models.JSONField(default=list)
     burn_subtitles = models.BooleanField(default=False)
+    auto_captions = models.BooleanField(default=False)
+    auto_caption_lang = models.CharField(max_length=10, default='id')
+    whisper_model = models.CharField(max_length=10, default='tiny')
+    orientation = models.CharField(max_length=10, choices=ORIENTATION_CHOICES, default='landscape')
     max_clips = models.IntegerField(default=0)
     download_sections = models.BooleanField(default=False)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='queued')

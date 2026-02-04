@@ -16,9 +16,11 @@ from .services import (
     pick_subtitle_file,
     split_video,
     burn_subtitles,
+    convert_to_portrait,
 )
 from .srt_utils import write_trimmed_srt
 from .utils import parse_timecode, parse_yt_dlp_progress
+from .stt import extract_audio, transcribe_to_srt
 
 MAX_DURATION_SECONDS = 2 * 60 * 60
 MAX_CLIPS = 60
@@ -109,15 +111,34 @@ def process_job(job_id):
         update_job(job, progress=40, message='Processing clips (streaming)')
 
         subtitle_file = None
-        if job.burn_subtitles:
+        per_clip_whisper = False
+        wants_subtitles = job.burn_subtitles or job.auto_captions
+        if wants_subtitles:
             update_job(job, progress=60, message='Fetching subtitles')
             try:
                 srt_files = download_subtitles(job.youtube_url, work_dir, job.subtitle_langs or ['id', 'en'])
                 subtitle_file = pick_subtitle_file(srt_files, job.subtitle_langs or ['id', 'en'])
                 if not subtitle_file:
-                    update_job(job, message='No subtitles available, proceeding without captions')
+                    update_job(job, message='No YouTube subtitles, checking auto captions')
             except Exception:
-                update_job(job, message='No subtitles available, proceeding without captions')
+                update_job(job, message='No YouTube subtitles, checking auto captions')
+
+        if not subtitle_file and job.auto_captions:
+            if job.download_sections or max_clips <= 3:
+                per_clip_whisper = True
+                update_job(job, message='Auto captions per clip (Whisper)')
+            else:
+                update_job(job, message='Auto captions (Whisper)')
+                audio_path = work_dir / 'whisper_full.wav'
+                extract_audio(source_path, audio_path)
+                full_srt = work_dir / 'whisper_full.srt'
+                transcribe_to_srt(
+                    audio_path,
+                    full_srt,
+                    language=job.auto_caption_lang,
+                    model_size=job.whisper_model,
+                )
+                subtitle_file = full_srt
 
         total = len(ranges)
         for idx, (start, end) in enumerate(ranges, start=1):
@@ -127,20 +148,39 @@ def process_job(job_id):
                 fast_copy = not job.burn_subtitles
                 clip_paths = split_video(source_path, [(start, end)], work_dir, fast_copy=fast_copy)
                 clip_path = clip_paths[0]
-            output_video = job_dir / f'clip_{idx:03d}_caption.mp4'
 
-            if job.burn_subtitles and subtitle_file:
+            output_srt = None
+            count = 0
+            if wants_subtitles:
                 output_srt = job_dir / f'clip_{idx:03d}.srt'
-                try:
-                    count = write_trimmed_srt(subtitle_file, output_srt, start, end)
-                except Exception:
+                if per_clip_whisper:
+                    audio_path = work_dir / f'clip_{idx:03d}.wav'
+                    extract_audio(clip_path, audio_path)
+                    count = transcribe_to_srt(
+                        audio_path,
+                        output_srt,
+                        language=job.auto_caption_lang,
+                        model_size=job.whisper_model,
+                    )
+                elif subtitle_file:
+                    try:
+                        count = write_trimmed_srt(subtitle_file, output_srt, start, end)
+                    except Exception:
+                        output_srt.write_text('', encoding='utf-8')
+                        count = 0
+                else:
                     output_srt.write_text('', encoding='utf-8')
                     count = 0
 
-                if count > 0:
-                    burn_subtitles(clip_path, output_srt, output_video)
-                else:
-                    shutil.copyfile(clip_path, output_video)
+            if job.orientation == 'portrait':
+                portrait_path = work_dir / f'clip_{idx:03d}_portrait.mp4'
+                convert_to_portrait(clip_path, portrait_path)
+                clip_path = portrait_path
+
+            output_video = job_dir / f'clip_{idx:03d}_caption.mp4'
+
+            if job.burn_subtitles and output_srt and count > 0:
+                burn_subtitles(clip_path, output_srt, output_video)
             else:
                 shutil.copyfile(clip_path, output_video)
 
