@@ -4,17 +4,82 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="5ba2630b-9c48-4d69-bb17-916df5b0fa42" name="Changes" comment="">
+    <list default="true" id="5ba2630b-9c48-4d69-bb17-916df5b0fa42" name="Changes" comment="latihan django vuejs">
+      <change afterPath="$PROJECT_DIR$/clipper-video/API.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/DEVELOPMENT.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/DOCUMENTATION_INDEX.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/PROJECT_COMPLETE.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/QUICKSTART.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/SERVER_STATUS.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/SETUP_SUMMARY.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/START_HERE.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/TROUBLESHOOTING.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/.env.example" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/asgi.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/celery.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/settings.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/urls.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/wsgi.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/admin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/apps.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/migrations/0001_initial.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/migrations/0002_job.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/migrations/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/models.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/serializers.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/services.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/srt_utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/tasks.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/tests.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/urls.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/views.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/manage.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/requirements.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/admin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/apps.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/migrations/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/models.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/tests.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/views.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/index.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/package-lock.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/package.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/public/vite.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/App.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/assets/vue.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/components/HelloWorld.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/components/VideosList.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/main.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/pages/VideoClipper.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/router/index.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/services/api.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/style.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/vite.config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/latihan-django.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/latihan-django.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my_tennis_club/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/my_tennis_club/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my_tennis_club/members/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/my_tennis_club/members/admin.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my_tennis_club/members/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/my_tennis_club/members/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mywebsite/mywebsite/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/mywebsite/mywebsite/urls.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/latihan_django_vue/backend/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/latihan_django_vue/backend/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/latihan_django_vue/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/latihan_django_vue/db.sqlite3" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -25,12 +90,12 @@
     &quot;assignee&quot;: &quot;fhnasgf28&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/fhnasgf28/latihan-django.git",
-    "accountId": "8bb276c2-2647-4f59-a47a-3202e8ec796b"
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/fhnasgf28/latihan-django.git&quot;,
+    &quot;accountId&quot;: &quot;8bb276c2-2647-4f59-a47a-3202e8ec796b&quot;
   }
-}]]></component>
+}</component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 1
 }</component>
@@ -39,19 +104,61 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "com.codeium.enabled": "true",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "/Users/farhan/latihan-django"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.manage.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
+    &quot;com.codeium.enabled&quot;: &quot;true&quot;,
+    &quot;com.google.cloudcode.ide_session_index&quot;: &quot;20260204_0002&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/farhan/latihan-django&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Applications/PyCharm.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
+  <component name="RunManager">
+    <configuration name="manage" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="latihan-django" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/latihan_django_vue" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/latihan_django_vue/manage.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.manage" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-fc1d50d2d915-aa17d162503b-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-243.24978.54" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.30387.127" />
+        <option value="bundled-python-sdk-3944b0c99280-6d6dccd035ac-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.30387.127" />
       </set>
     </attachedChunks>
   </component>
@@ -63,7 +170,32 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1738515955391</updated>
+      <workItem from="1769400722622" duration="2423000" />
+      <workItem from="1769410671614" duration="68000" />
+      <workItem from="1770010630053" duration="2587000" />
+      <workItem from="1770106545559" duration="5462000" />
+      <workItem from="1770194579277" duration="5737000" />
+      <workItem from="1770206384824" duration="3457000" />
     </task>
+    <task id="LOCAL-00001" summary="latihan django vuejs">
+      <option name="closed" value="true" />
+      <created>1769410711121</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1769410711121</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="latihan django vuejs" />
+    <option name="LAST_COMMIT_MESSAGE" value="latihan django vuejs" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/latihan_django$manage.coverage" NAME="manage Coverage Results" MODIFIED="1770196689367" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/latihan_django_vue" />
   </component>
 </project>
