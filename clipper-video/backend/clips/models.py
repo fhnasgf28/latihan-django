@@ -54,13 +54,21 @@ class Job(models.Model):
         ('manual', 'Manual'),
     ]
 
+    SOURCE_CHOICES = [
+        ('youtube', 'YouTube'),
+        ('local', 'Local'),
+    ]
+
     ORIENTATION_CHOICES = [
         ('landscape', 'Landscape'),
         ('portrait', 'Portrait'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    youtube_url = models.TextField()
+    source_type = models.CharField(max_length=10, choices=SOURCE_CHOICES, default='youtube')
+    youtube_url = models.TextField(blank=True, default='')
+    local_video_path = models.TextField(blank=True, default='')
+    local_video_name = models.CharField(max_length=255, blank=True, default='')
     mode = models.CharField(max_length=10, choices=MODE_CHOICES)
     interval_minutes = models.IntegerField(null=True, blank=True)
     ranges = models.JSONField(null=True, blank=True)

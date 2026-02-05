@@ -57,6 +57,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
         fields = [
+            'source_type',
             'youtube_url',
             'mode',
             'interval_minutes',
@@ -74,6 +75,8 @@ class JobCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_youtube_url(self, value):
+        if not value:
+            return value
         # Lebih fleksibel:
         # 1. Protokol http/https opsional (^(https?://)?)
         # 2. Subdomain opsional (www, m, music, dll) (([a-zA-Z0-9-]+\.)?)
@@ -83,6 +86,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
+        source_type = data.get('source_type', 'youtube')
         mode = data.get('mode')
         interval = data.get('interval_minutes')
         ranges = data.get('ranges')
@@ -96,6 +100,15 @@ class JobCreateSerializer(serializers.ModelSerializer):
         orientation = data.get('orientation', 'landscape')
         max_clips = data.get('max_clips', 0)
         download_sections = data.get('download_sections', False)
+
+        if source_type not in ['youtube', 'local']:
+            raise serializers.ValidationError({'source_type': 'source_type harus youtube atau local'})
+
+        if source_type == 'local':
+            raise serializers.ValidationError({'source_type': 'Untuk source local, gunakan endpoint /api/jobs/upload/ (multipart).'})
+
+        if source_type == 'youtube' and not data.get('youtube_url'):
+            raise serializers.ValidationError({'youtube_url': 'youtube_url wajib diisi untuk source youtube'})
 
         if mode not in ['auto', 'manual']:
             raise serializers.ValidationError({'mode': 'Mode harus auto atau manual'})
@@ -195,7 +208,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
         for path in sorted(job_dir.iterdir()):
             if path.is_file() and path.name != 'work':
                 if max_clips > 0:
-                    match = re.match(r'^clip_(\\d{3})', path.name)
+                    match = re.match(r'^clip_(\d{3})', path.name)
                     if match and int(match.group(1)) > max_clips:
                         continue
                 results.append({
@@ -203,3 +216,46 @@ class JobDetailSerializer(serializers.ModelSerializer):
                     'url': f"{settings.MEDIA_URL}jobs/{obj.id}/{path.name}",
                 })
         return results
+
+
+class LocalJobUploadSerializer(serializers.Serializer):
+    video_file = serializers.FileField()
+    mode = serializers.ChoiceField(choices=['auto', 'manual'])
+    interval_minutes = serializers.IntegerField(required=False, min_value=1)
+    ranges = serializers.JSONField(required=False)
+
+    strict_1080 = serializers.BooleanField(required=False, default=False)
+    min_height_fallback = serializers.IntegerField(required=False, default=720)
+
+    subtitle_langs = serializers.JSONField(required=False, default=list)
+    burn_subtitles = serializers.BooleanField(required=False, default=False)
+
+    auto_captions = serializers.BooleanField(required=False, default=False)
+    auto_caption_lang = serializers.ChoiceField(choices=['id', 'en'], required=False, default='id')
+    whisper_model = serializers.ChoiceField(choices=['tiny', 'base', 'small'], required=False, default='tiny')
+
+    orientation = serializers.ChoiceField(choices=['landscape', 'portrait'], required=False, default='landscape')
+    max_clips = serializers.IntegerField(required=False, default=0, min_value=0, max_value=60)
+
+    def validate(self, data):
+        # DRF FormParser may pass JSON fields as strings; normalize here.
+        if isinstance(data.get('ranges'), str):
+            import json
+            try:
+                data['ranges'] = json.loads(data['ranges'])
+            except Exception:
+                raise serializers.ValidationError({'ranges': 'ranges harus JSON array'})
+        if isinstance(data.get('subtitle_langs'), str):
+            import json
+            try:
+                data['subtitle_langs'] = json.loads(data['subtitle_langs'])
+            except Exception:
+                data['subtitle_langs'] = []
+        if data['mode'] == 'auto':
+            if data.get('interval_minutes') is None:
+                raise serializers.ValidationError({'interval_minutes': 'Interval wajib diisi untuk mode auto'})
+        else:
+            ranges = data.get('ranges')
+            if not ranges or not isinstance(ranges, list):
+                raise serializers.ValidationError({'ranges': 'Ranges wajib diisi untuk mode manual'})
+        return data

@@ -9,6 +9,24 @@ def fetch_video_info(url):
     return json.loads(output)
 
 
+def probe_duration_seconds(video_path):
+    output = run_command([
+        'ffprobe',
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'json',
+        str(video_path),
+    ])
+    data = json.loads(output)
+    duration = data.get('format', {}).get('duration')
+    if not duration:
+        return 0
+    try:
+        return float(duration)
+    except ValueError:
+        return 0
+
+
 def get_max_height(formats):
     heights = [fmt.get('height') for fmt in formats if fmt.get('height')]
     return max(heights) if heights else 0

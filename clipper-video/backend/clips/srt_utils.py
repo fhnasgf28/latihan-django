@@ -60,20 +60,66 @@ def trim_srt(content, clip_start, clip_end):
 
 
 def dedupe_entries(entries, gap_threshold=0.2):
+    """
+    1) Merge consecutive duplicate text (common with auto captions).
+    2) Normalize timing to avoid 'previous caption' lingering/overlapping.
+    """
     cleaned = []
     for entry in entries:
         text = entry['text'].strip()
         if not text:
             continue
-        if cleaned and cleaned[-1]['text'] == text and entry['start'] <= cleaned[-1]['end'] + gap_threshold:
-            cleaned[-1]['end'] = max(cleaned[-1]['end'], entry['end'])
+        start = float(entry['start'])
+        end = float(entry['end'])
+        if end <= start:
+            continue
+        if cleaned and cleaned[-1]['text'] == text and start <= cleaned[-1]['end'] + gap_threshold:
+            cleaned[-1]['end'] = max(cleaned[-1]['end'], end)
             continue
         cleaned.append({
-            'start': entry['start'],
-            'end': entry['end'],
+            'start': start,
+            'end': end,
             'text': text,
         })
-    return cleaned
+    return normalize_entries(cleaned)
+
+
+def normalize_entries(entries, min_gap=0.05, max_duration=4.5, min_duration=0.35):
+    """
+    Prevent overlapping cues and overly-long cues which cause old captions to
+    remain visible while the next caption starts.
+    """
+    if not entries:
+        return []
+    entries = sorted(entries, key=lambda e: (e['start'], e['end']))
+    normalized = []
+    for idx, entry in enumerate(entries):
+        start = float(entry['start'])
+        end = float(entry['end'])
+        text = entry['text'].strip()
+        if not text:
+            continue
+        # If this starts before the previous ends, push it forward so captions never overlap.
+        if normalized:
+            prev_end = float(normalized[-1]['end'])
+            if start < prev_end + min_gap:
+                start = prev_end + min_gap
+
+        # Cap duration so captions don't 'stick' too long.
+        end = min(end, start + max_duration)
+
+        # If next entry starts before this ends, clamp end to just before next start.
+        if idx + 1 < len(entries):
+            next_start = float(entries[idx + 1]['start'])
+            if next_start <= end:
+                end = max(start, next_start - min_gap)
+
+        # Ensure a minimal on-screen time (otherwise some players behave oddly).
+        if end - start < min_duration:
+            end = start + min_duration
+
+        normalized.append({'start': start, 'end': end, 'text': text})
+    return normalized
 
 
 def render_srt(entries):

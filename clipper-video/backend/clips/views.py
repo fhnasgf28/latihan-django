@@ -1,12 +1,13 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse, Http404
 from .models import Video, Clip, Job
-from .serializers import VideoSerializer, VideoListSerializer, ClipSerializer, JobCreateSerializer, JobDetailSerializer
+from .serializers import VideoSerializer, VideoListSerializer, ClipSerializer, JobCreateSerializer, JobDetailSerializer, LocalJobUploadSerializer
 from django.db.models import Q
 from django.conf import settings
 from pathlib import Path
@@ -100,7 +101,55 @@ class JobCreateView(APIView):
     def post(self, request):
         serializer = JobCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        job = serializer.save(status='queued', progress=0, message='Job queued')
+        job = serializer.save(status='queued', progress=0, message='Job queued', source_type='youtube')
+        process_job.delay(str(job.id))
+        return Response({'id': str(job.id), 'status': job.status}, status=status.HTTP_201_CREATED)
+
+
+class LocalJobUploadView(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = LocalJobUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        upload = serializer.validated_data['video_file']
+        job = Job.objects.create(
+            source_type='local',
+            youtube_url='',
+            local_video_name=getattr(upload, 'name', ''),
+            mode=serializer.validated_data['mode'],
+            interval_minutes=serializer.validated_data.get('interval_minutes'),
+            ranges=serializer.validated_data.get('ranges'),
+            strict_1080=serializer.validated_data.get('strict_1080', False),
+            min_height_fallback=serializer.validated_data.get('min_height_fallback', 720),
+            subtitle_langs=serializer.validated_data.get('subtitle_langs') or ['id', 'en'],
+            burn_subtitles=serializer.validated_data.get('burn_subtitles', False),
+            auto_captions=serializer.validated_data.get('auto_captions', False),
+            auto_caption_lang=serializer.validated_data.get('auto_caption_lang', 'id'),
+            whisper_model=serializer.validated_data.get('whisper_model', 'tiny'),
+            orientation=serializer.validated_data.get('orientation', 'landscape'),
+            max_clips=serializer.validated_data.get('max_clips', 0),
+            download_sections=False,
+            status='queued',
+            progress=0,
+            message='Job queued',
+        )
+
+        job_dir = Path(settings.MEDIA_ROOT) / 'jobs' / str(job.id)
+        work_dir = job_dir / 'work'
+        work_dir.mkdir(parents=True, exist_ok=True)
+        suffix = Path(upload.name).suffix or '.mp4'
+        dest = work_dir / f'local_source{suffix}'
+        with open(dest, 'wb') as out:
+            for chunk in upload.chunks():
+                out.write(chunk)
+
+        # Store relative to MEDIA_ROOT so it works cross-platform.
+        job.local_video_path = str(dest.relative_to(settings.MEDIA_ROOT))
+        job.save(update_fields=['local_video_path', 'updated_at'])
+
         process_job.delay(str(job.id))
         return Response({'id': str(job.id), 'status': job.status}, status=status.HTTP_201_CREATED)
 

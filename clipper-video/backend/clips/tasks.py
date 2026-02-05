@@ -9,6 +9,7 @@ from datetime import timedelta
 from .models import Job
 from .services import (
     fetch_video_info,
+    probe_duration_seconds,
     get_max_height,
     has_height,
     build_format_selector,
@@ -57,18 +58,32 @@ def cleanup_old_jobs():
 def process_job(job_id):
     job = Job.objects.get(id=job_id)
     try:
-        update_job(job, status='running', progress=5, message='Fetching video info')
-        info = fetch_video_info(job.youtube_url)
-        duration = info.get('duration')
-        if not duration:
-            raise RuntimeError('Tidak bisa membaca durasi video')
+        update_job(job, status='running', progress=5, message='Preparing')
+
+        info = None
+        duration = 0
+        if job.source_type == 'youtube':
+            update_job(job, message='Fetching video info')
+            info = fetch_video_info(job.youtube_url)
+            duration = info.get('duration') or 0
+            if not duration:
+                raise RuntimeError('Tidak bisa membaca durasi video')
+        else:
+            update_job(job, message='Probing local video')
+            source_path = Path(settings.MEDIA_ROOT) / job.local_video_path
+            if not source_path.exists():
+                raise RuntimeError('Local video file tidak ditemukan')
+            duration = probe_duration_seconds(source_path)
+            if not duration:
+                raise RuntimeError('Tidak bisa membaca durasi video (ffprobe)')
         if duration > MAX_DURATION_SECONDS:
             raise RuntimeError('Video lebih dari 2 jam. Silakan gunakan video yang lebih pendek.')
 
-        formats = info.get('formats') or []
-        max_height = get_max_height(formats)
-        if job.strict_1080 and not has_height(formats, 1080):
-            raise RuntimeError(f'1080p tidak tersedia. Max height tersedia: {max_height}p')
+        if job.source_type == 'youtube':
+            formats = info.get('formats') or []
+            max_height = get_max_height(formats)
+            if job.strict_1080 and not has_height(formats, 1080):
+                raise RuntimeError(f'1080p tidak tersedia. Max height tersedia: {max_height}p')
 
         if job.mode == 'auto':
             # Pastikan interval_minutes tidak None sebelum dikalikan
@@ -111,30 +126,35 @@ def process_job(job_id):
 
         selector = build_format_selector(job.strict_1080, job.min_height_fallback)
         source_path = None
-        if not job.download_sections:
-            last_reported = {'progress': 0}
+        if job.source_type == 'youtube':
+            if not job.download_sections:
+                last_reported = {'progress': 0}
 
-            def handle_download_line(line):
-                percent = parse_yt_dlp_progress(line)
-                if percent is None:
-                    return
-                scaled = 5 + int((percent / 100) * 15)
-                if scaled > last_reported['progress']:
-                    last_reported['progress'] = scaled
-                    update_job(job, progress=scaled, message=f'Downloading video {percent:.1f}%')
+                def handle_download_line(line):
+                    percent = parse_yt_dlp_progress(line)
+                    if percent is None:
+                        return
+                    scaled = 5 + int((percent / 100) * 15)
+                    if scaled > last_reported['progress']:
+                        last_reported['progress'] = scaled
+                        update_job(job, progress=scaled, message=f'Downloading video {percent:.1f}%')
 
-            update_job(job, message='Downloading video 0%')
-            source_path = download_video(job.youtube_url, work_dir, selector, on_line=handle_download_line)
-            update_job(job, progress=20, message='Download complete')
+                update_job(job, message='Downloading video 0%')
+                source_path = download_video(job.youtube_url, work_dir, selector, on_line=handle_download_line)
+                update_job(job, progress=20, message='Download complete')
+            else:
+                update_job(job, progress=20, message='Using download-sections (streaming)')
         else:
-            update_job(job, progress=20, message='Using download-sections (streaming)')
+            # Local source: file already exists, skip download.
+            source_path = Path(settings.MEDIA_ROOT) / job.local_video_path
+            update_job(job, progress=20, message='Local video ready')
 
         update_job(job, progress=40, message='Processing clips (streaming)')
 
         subtitle_file = None
         per_clip_whisper = False
         wants_subtitles = job.burn_subtitles or job.auto_captions
-        if wants_subtitles:
+        if wants_subtitles and job.source_type == 'youtube':
             update_job(job, progress=60, message='Fetching subtitles')
             try:
                 srt_files = download_subtitles(job.youtube_url, work_dir, job.subtitle_langs or ['id', 'en'])
@@ -143,9 +163,11 @@ def process_job(job_id):
                     update_job(job, message='No YouTube subtitles, checking auto captions')
             except Exception:
                 update_job(job, message='No YouTube subtitles, checking auto captions')
+        elif wants_subtitles:
+            update_job(job, progress=60, message='No YouTube subtitles for local source, checking auto captions')
 
         if not subtitle_file and job.auto_captions:
-            if job.download_sections or max_clips <= 3:
+            if (job.source_type == 'youtube' and job.download_sections) or max_clips <= 3:
                 per_clip_whisper = True
                 update_job(job, message='Auto captions per clip (Whisper)')
             else:
@@ -160,10 +182,12 @@ def process_job(job_id):
                     model_size=job.whisper_model,
                 )
                 subtitle_file = full_srt
+        elif job.burn_subtitles and not subtitle_file and not job.auto_captions:
+            update_job(job, message='Burn subtitles aktif tapi subtitle tidak tersedia; hasil tanpa caption')
 
         total = len(ranges)
         for idx, (start, end) in enumerate(ranges, start=1):
-            if job.download_sections:
+            if job.source_type == 'youtube' and job.download_sections:
                 clip_path = download_section(job.youtube_url, work_dir, selector, start, end, idx)
             else:
                 fast_copy = not job.burn_subtitles

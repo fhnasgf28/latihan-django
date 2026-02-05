@@ -10,15 +10,7 @@
       </div>
 
       <div class="mt-6 space-y-5">
-        <div>
-          <label class="text-sm font-medium text-slate-200">URL YouTube</label>
-          <input
-            v-model.trim="form.youtube_url"
-            type="text"
-            placeholder="https://www.youtube.com/watch?v=..."
-            class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white placeholder:text-slate-500"
-          />
-        </div>
+        <VideoSourcePicker v-model="form" />
 
         <div>
           <label class="text-sm font-medium text-slate-200">Mode</label>
@@ -94,11 +86,11 @@
           <label class="text-sm font-medium text-slate-200">Mode download</label>
           <div class="mt-2 flex items-center gap-3">
             <label class="flex items-center gap-2 text-sm text-slate-300">
-              <input type="checkbox" v-model="form.download_sections" class="h-4 w-4 rounded border-white/20" />
+              <input type="checkbox" v-model="form.download_sections" :disabled="form.source === 'local'" class="h-4 w-4 rounded border-white/20" />
               Download sections (streaming)
             </label>
           </div>
-          <p class="mt-2 text-xs text-slate-400">Mode ini hanya download bagian clip yang dibutuhkan.</p>
+          <p class="mt-2 text-xs text-slate-400">Mode ini hanya download bagian clip yang dibutuhkan (YouTube saja).</p>
         </div>
 
         <div>
@@ -267,9 +259,13 @@
 <script setup>
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { jobAPI } from '@/services/api'
+import VideoSourcePicker from '@/components/VideoSourcePicker.vue'
 
 const form = ref({
+  source: 'youtube',
   youtube_url: '',
+  local_file: null,
+  local_name: '',
   mode: 'auto',
   interval_minutes: 3,
   ranges: [{ start: '00:00:00', end: '00:01:00' }],
@@ -397,13 +393,37 @@ const estimateEtaSeconds = () => {
 
 const submitJob = async () => {
   error.value = ''
-  if (!form.value.youtube_url) {
-    error.value = 'URL YouTube wajib diisi.'
-    return
+  if (form.value.source === 'youtube') {
+    if (!form.value.youtube_url) {
+      error.value = 'URL YouTube wajib diisi.'
+      return
+    }
+  } else {
+    if (!form.value.local_file) {
+      error.value = 'File video wajib dipilih.'
+      return
+    }
   }
   loading.value = true
   try {
-    const response = await jobAPI.create(buildPayload())
+    let response
+    const payload = buildPayload()
+    if (form.value.source === 'youtube') {
+      response = await jobAPI.create(payload)
+    } else {
+      const fd = new FormData()
+      fd.append('video_file', form.value.local_file)
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value === null || value === undefined) return
+        if (key === 'youtube_url' || key === 'source_type') return
+        if (Array.isArray(value) || typeof value === 'object') {
+          fd.append(key, JSON.stringify(value))
+        } else {
+          fd.append(key, String(value))
+        }
+      })
+      response = await jobAPI.createLocal(fd)
+    }
     jobId.value = response.data.id
     job.value = { status: response.data.status, progress: 0, message: 'Queued', error: null }
     resetProgress()

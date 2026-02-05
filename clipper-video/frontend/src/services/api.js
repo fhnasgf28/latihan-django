@@ -13,7 +13,10 @@ const apiClient = axios.create({
 export const jobAPI = {
   create: (data) => apiClient.post('/jobs/', data),
   get: (id) => apiClient.get(`/jobs/${id}/`),
-  downloadZipUrl: (id) => `${API_BASE_URL}/jobs/${id}/download-zip/`
+  downloadZipUrl: (id) => `${API_BASE_URL}/jobs/${id}/download-zip/`,
+  createLocal: (formData) => apiClient.post('/jobs/upload/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 }
 
 export const videoAPI = {

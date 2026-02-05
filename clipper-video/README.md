@@ -112,6 +112,17 @@ Response:
 { "id": "<uuid>", "status": "queued" }
 ```
 
+### 1b) POST `/api/jobs/upload/` (Local File)
+Gunakan ini kalau mau source video dari komputer (biasanya lebih cepat karena tidak perlu download YouTube).
+
+- Request: `multipart/form-data`
+  - `video_file`: file video (mp4/mkv/dll)
+  - field lain sama seperti `/api/jobs/` (contoh: `mode`, `interval_minutes`, `ranges`, `max_clips`, `burn_subtitles`, `auto_captions`, `orientation`, dll)
+- Response:
+```json
+{ "id": "<uuid>", "status": "queued" }
+```
+
 ### 2) GET `/api/jobs/<id>/`
 Response:
 ```json
