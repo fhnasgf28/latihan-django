@@ -4,70 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="5ba2630b-9c48-4d69-bb17-916df5b0fa42" name="Changes" comment="latihan django vuejs">
-      <change afterPath="$PROJECT_DIR$/clipper-video/API.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/DEVELOPMENT.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/DOCUMENTATION_INDEX.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/PROJECT_COMPLETE.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/QUICKSTART.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/SERVER_STATUS.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/SETUP_SUMMARY.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/START_HERE.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/TROUBLESHOOTING.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/.env.example" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/asgi.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/celery.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/settings.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/urls.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clipper/wsgi.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/admin.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/apps.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/migrations/0001_initial.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/migrations/0002_job.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/migrations/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/models.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/serializers.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/services.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/srt_utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/tasks.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/tests.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/urls.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/clips/views.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/manage.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/requirements.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/admin.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/apps.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/migrations/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/models.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/tests.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/backend/users/views.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/index.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/package-lock.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/package.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/public/vite.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/App.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/assets/vue.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/components/HelloWorld.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/components/VideosList.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/main.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/pages/VideoClipper.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/router/index.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/services/api.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/src/style.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/clipper-video/frontend/vite.config.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/latihan-django.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/latihan-django.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="5ba2630b-9c48-4d69-bb17-916df5b0fa42" name="Changes" comment="latihan django vuejs, bisa untuk local ngambil videonya">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/latihan_django_vue/backend/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/latihan_django_vue/backend/settings.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/latihan_django_vue/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/latihan_django_vue/db.sqlite3" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -104,25 +42,25 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python.manage.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
-    &quot;com.codeium.enabled&quot;: &quot;true&quot;,
-    &quot;com.google.cloudcode.ide_session_index&quot;: &quot;20260204_0002&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/farhan/latihan-django&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;/Applications/PyCharm.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.manage.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "ai.playground.ignore.import.keys.banner.in.settings": "true",
+    "com.codeium.enabled": "true",
+    "com.google.cloudcode.ide_session_index": "20260211_0002",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/farhan/latihan-django",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "ts.external.directory.path": "/Applications/PyCharm.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RunManager">
     <configuration name="manage" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="latihan-django" />
@@ -176,6 +114,10 @@
       <workItem from="1770106545559" duration="5462000" />
       <workItem from="1770194579277" duration="5737000" />
       <workItem from="1770206384824" duration="3457000" />
+      <workItem from="1770219096076" duration="193000" />
+      <workItem from="1770222231417" duration="14635000" />
+      <workItem from="1770299606313" duration="3536000" />
+      <workItem from="1770803937889" duration="6080000" />
     </task>
     <task id="LOCAL-00001" summary="latihan django vuejs">
       <option name="closed" value="true" />
@@ -185,7 +127,63 @@
       <option name="project" value="LOCAL" />
       <updated>1769410711121</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="latihan django vuejs">
+      <option name="closed" value="true" />
+      <created>1770219199709</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1770219199709</updated>
+    </task>
+    <task id="LOCAL-00003" summary="latihan django vuejs, menambahkan subtitle pada video yang di klip">
+      <option name="closed" value="true" />
+      <created>1770225740099</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1770225740100</updated>
+    </task>
+    <task id="LOCAL-00004" summary="latihan django vuejs, menambahkan fitur interval &amp; download sections">
+      <option name="closed" value="true" />
+      <created>1770228662764</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1770228662764</updated>
+    </task>
+    <task id="LOCAL-00005" summary="latihan django vuejs, menambahkan fitur landscape dan subtitle">
+      <option name="closed" value="true" />
+      <created>1770230949921</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1770230949922</updated>
+    </task>
+    <task id="LOCAL-00006" summary="latihan django vuejs, menambahkan tailwind">
+      <option name="closed" value="true" />
+      <created>1770231931312</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1770231931312</updated>
+    </task>
+    <task id="LOCAL-00007" summary="latihan django vuejs, menambahkan penghapus jobs yang tidak di download">
+      <option name="closed" value="true" />
+      <created>1770232840580</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1770232840580</updated>
+    </task>
+    <task id="LOCAL-00008" summary="latihan django vuejs, bisa untuk local ngambil videonya">
+      <option name="closed" value="true" />
+      <created>1770258986159</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1770258986159</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -193,7 +191,13 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="latihan django vuejs" />
-    <option name="LAST_COMMIT_MESSAGE" value="latihan django vuejs" />
+    <MESSAGE value="latihan django vuejs, menambahkan subtitle pada video yang di klip" />
+    <MESSAGE value="latihan django vuejs, menambahkan fitur interval &amp; download sections" />
+    <MESSAGE value="latihan django vuejs, menambahkan fitur landscape dan subtitle" />
+    <MESSAGE value="latihan django vuejs, menambahkan tailwind" />
+    <MESSAGE value="latihan django vuejs, menambahkan penghapus jobs yang tidak di download" />
+    <MESSAGE value="latihan django vuejs, bisa untuk local ngambil videonya" />
+    <option name="LAST_COMMIT_MESSAGE" value="latihan django vuejs, bisa untuk local ngambil videonya" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/latihan_django$manage.coverage" NAME="manage Coverage Results" MODIFIED="1770196689367" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/latihan_django_vue" />
