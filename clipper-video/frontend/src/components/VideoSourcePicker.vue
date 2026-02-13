@@ -33,6 +33,15 @@
         class="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white placeholder:text-slate-500"
         @input="$emit('update:modelValue', { ...modelValue, youtube_url: $event.target.value })"
       />
+
+      <div v-if="thumbnailUrl" class="mt-3 w-full max-w-xs overflow-hidden rounded-2xl border border-white/10 bg-slate-950/60 p-2">
+        <img
+          :src="thumbnailUrl"
+          alt="Thumbnail YouTube"
+          class="h-30 w-full rounded-xl object-cover"
+          loading="lazy"
+        />
+      </div>
     </div>
 
     <div v-else class="mt-4">
@@ -49,6 +58,8 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+
 const props = defineProps({
   modelValue: {
     type: Object,
@@ -57,6 +68,27 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+const extractYoutubeId = (url = '') => {
+  const trimmed = String(url).trim()
+  if (!trimmed) return null
+
+  const shortMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/)
+  if (shortMatch?.[1]) return shortMatch[1]
+
+  const watchMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/)
+  if (watchMatch?.[1]) return watchMatch[1]
+
+  const embedMatch = trimmed.match(/(?:embed|shorts)\/([a-zA-Z0-9_-]{11})/)
+  if (embedMatch?.[1]) return embedMatch[1]
+
+  return null
+}
+
+const thumbnailUrl = computed(() => {
+  const videoId = extractYoutubeId(props.modelValue.youtube_url)
+  return videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : ''
+})
 
 const setSource = (source) => {
   emit('update:modelValue', { ...props.modelValue, source })

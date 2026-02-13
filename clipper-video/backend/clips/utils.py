@@ -27,12 +27,24 @@ def run_command_stream(cmd, on_line=None, cwd=None):
         bufsize=1,
     )
     output_lines = []
-    if process.stdout:
-        for line in process.stdout:
-            output_lines.append(line)
-            if on_line:
-                on_line(line)
+    callback_error = None
+    try:
+        if process.stdout:
+            for line in process.stdout:
+                output_lines.append(line)
+                if on_line:
+                    on_line(line)
+    except Exception as exc:
+        callback_error = exc
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
     return_code = process.wait()
+    if callback_error:
+        raise callback_error
     if return_code != 0:
         tail = ''.join(output_lines[-20:]).strip()
         raise RuntimeError(tail or 'Command failed')

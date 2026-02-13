@@ -35,6 +35,16 @@ def update_job(job, **fields):
     job.save(update_fields=list(fields.keys()) + ['updated_at'])
 
 
+class JobCanceledError(Exception):
+    pass
+
+
+def ensure_not_canceled(job):
+    job.refresh_from_db(fields=['cancel_requested', 'status'])
+    if job.cancel_requested or job.status == 'canceled':
+        raise JobCanceledError('Canceled by user')
+
+
 @shared_task
 def cleanup_old_jobs():
     """
@@ -58,13 +68,16 @@ def cleanup_old_jobs():
 def process_job(job_id):
     job = Job.objects.get(id=job_id)
     try:
+        ensure_not_canceled(job)
         update_job(job, status='running', progress=5, message='Preparing')
+        ensure_not_canceled(job)
 
         info = None
         duration = 0
         if job.source_type == 'youtube':
             update_job(job, message='Fetching video info')
             info = fetch_video_info(job.youtube_url)
+            ensure_not_canceled(job)
             duration = info.get('duration') or 0
             if not duration:
                 raise RuntimeError('Tidak bisa membaca durasi video')
@@ -74,6 +87,7 @@ def process_job(job_id):
             if not source_path.exists():
                 raise RuntimeError('Local video file tidak ditemukan')
             duration = probe_duration_seconds(source_path)
+            ensure_not_canceled(job)
             if not duration:
                 raise RuntimeError('Tidak bisa membaca durasi video (ffprobe)')
         if duration > MAX_DURATION_SECONDS:
@@ -131,6 +145,7 @@ def process_job(job_id):
                 last_reported = {'progress': 0}
 
                 def handle_download_line(line):
+                    ensure_not_canceled(job)
                     percent = parse_yt_dlp_progress(line)
                     if percent is None:
                         return
@@ -181,12 +196,14 @@ def process_job(job_id):
                     language=job.auto_caption_lang,
                     model_size=job.whisper_model,
                 )
+                ensure_not_canceled(job)
                 subtitle_file = full_srt
         elif job.burn_subtitles and not subtitle_file and not job.auto_captions:
             update_job(job, message='Burn subtitles aktif tapi subtitle tidak tersedia; hasil tanpa caption')
 
         total = len(ranges)
         for idx, (start, end) in enumerate(ranges, start=1):
+            ensure_not_canceled(job)
             if job.source_type == 'youtube' and job.download_sections:
                 clip_path = download_section(job.youtube_url, work_dir, selector, start, end, idx)
             else:
@@ -207,6 +224,7 @@ def process_job(job_id):
                         language=job.auto_caption_lang,
                         model_size=job.whisper_model,
                     )
+                    ensure_not_canceled(job)
                 elif subtitle_file:
                     try:
                         count = write_trimmed_srt(subtitle_file, output_srt, start, end)
@@ -220,6 +238,7 @@ def process_job(job_id):
             if job.orientation == 'portrait':
                 portrait_path = work_dir / f'clip_{idx:03d}_portrait.mp4'
                 convert_to_portrait(clip_path, portrait_path)
+                ensure_not_canceled(job)
                 clip_path = portrait_path
 
             output_video = job_dir / f'clip_{idx:03d}_caption.mp4'
@@ -234,6 +253,13 @@ def process_job(job_id):
 
         update_job(job, status='done', progress=100, message='Done')
         shutil.rmtree(work_dir, ignore_errors=True)
+    except JobCanceledError:
+        update_job(job, status='canceled', progress=100, message='Canceled by user', cancel_requested=True)
+        try:
+            work_dir = Path(settings.MEDIA_ROOT) / 'jobs' / str(job.id) / 'work'
+            shutil.rmtree(work_dir, ignore_errors=True)
+        except Exception:
+            pass
     except Exception as exc:
         update_job(job, status='failed', progress=100, error=str(exc), message='Failed')
         try:

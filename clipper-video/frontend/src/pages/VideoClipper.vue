@@ -222,6 +222,14 @@
           </span>
           <span class="text-xs text-slate-400">Job ID: {{ jobId }}</span>
         </div>
+        <button
+          v-if="canCancel"
+          type="button"
+          class="rounded-xl border border-rose-300/40 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-200 hover:bg-rose-500/20"
+          @click="cancelJob"
+        >
+          Cancel Job
+        </button>
         <p class="text-sm text-slate-200">{{ job.message }}</p>
 
         <div class="flex items-center justify-between text-xs text-slate-300">
@@ -257,9 +265,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { jobAPI } from '@/services/api'
+import { jobStorage } from "@/services/jobStorage";
 import VideoSourcePicker from '@/components/VideoSourcePicker.vue'
+
+const FORM_YOUTUBE_URL_STORAGE_KEY = 'clipper_last_youtube_url'
+
+// Job persistence
+const currentJob = ref(null)
+const pollingInterval = ref(null)
 
 const form = ref({
   source: 'youtube',
@@ -269,8 +284,8 @@ const form = ref({
   mode: 'auto',
   interval_minutes: 3,
   ranges: [{ start: '00:00:00', end: '00:01:00' }],
-  max_clips: 0,
-  download_sections: false,
+  max_clips: 1,
+  download_sections: true,
   orientation: 'landscape',
   strict_1080: true,
   min_height_fallback: 720,
@@ -305,9 +320,15 @@ const subtitleLangs = computed(() => {
 const statusClass = computed(() => {
   if (!job.value) return 'bg-slate-800 text-slate-300'
   if (job.value.status === 'done') return 'bg-emerald-500/20 text-emerald-200'
+  if (job.value.status === 'canceled') return 'bg-slate-500/30 text-slate-200'
   if (job.value.status === 'failed') return 'bg-rose-500/20 text-rose-200'
   if (job.value.status === 'running') return 'bg-sky-500/20 text-sky-200'
   return 'bg-amber-500/20 text-amber-200'
+})
+
+const canCancel = computed(() => {
+  if (!job.value) return false
+  return ['queued', 'running'].includes(job.value.status)
 })
 
 const numericProgress = computed(() => {
@@ -426,8 +447,24 @@ const submitJob = async () => {
     }
     jobId.value = response.data.id
     job.value = { status: response.data.status, progress: 0, message: 'Queued', error: null }
+    
+    console.log('🆕 [VideoClipper] New job created:', response.data)
+    
+    // Save to localStorage for persistence
+    currentJob.value = {
+      id: response.data.id,
+      access_token: response.data.access_token,
+      status: response.data.status,
+      progress: response.data.progress ?? 0,
+      created_at: response.data.created_at || new Date().toISOString()
+    }
+    
+    console.log('💾 [VideoClipper] Saving job to localStorage:', currentJob.value)
+    jobStorage.saveJob(currentJob.value)
+    
     resetProgress()
     startPolling()
+    console.log('🔄 [VideoClipper] Started polling for new job')
   } catch (err) {
     error.value = err.response?.data?.detail || err.response?.data?.error || err.message
   } finally {
@@ -450,10 +487,74 @@ const fetchJob = async () => {
   }
 }
 
+const checkJobStatus = async () => {
+  if (!currentJob.value) return
+  
+  console.log('🔍 [VideoClipper] Checking job status for:', currentJob.value.id)
+  
+  try {
+    jobId.value = currentJob.value.id
+    const response = await jobAPI.get(currentJob.value.id, {
+      params: { token: currentJob.value.access_token }
+    })
+    
+    console.log('✅ [VideoClipper] Job status response:', response.data)
+    
+    // Update both currentJob and job for UI
+    currentJob.value = {
+      ...response.data,
+      access_token: currentJob.value.access_token,
+      created_at: currentJob.value.created_at || response.data.created_at
+    }
+    job.value = response.data
+    
+    jobStorage.saveJob(currentJob.value)
+    console.log('💾 [VideoClipper] Job state updated and saved')
+    
+    if (['done', 'failed', 'canceled'].includes(currentJob.value.status)) {
+      console.log('🎉 [VideoClipper] Job completed, stopping polling')
+      stopPolling()
+      jobStorage.clearJob()
+    }
+  } catch (error) {
+    console.error('❌ [VideoClipper] Error checking job status:', error)
+    if (error.response?.status === 403) {
+      console.log('🔒 [VideoClipper] Access denied, clearing job')
+      stopPolling()
+      jobStorage.clearJob()
+      currentJob.value = null
+      job.value = null
+    }
+  }
+}
+
+const cancelJob = async () => {
+  if (!currentJob.value?.id || !currentJob.value?.access_token) {
+    error.value = 'Tidak bisa cancel: token job tidak tersedia.'
+    return
+  }
+  try {
+    const response = await jobAPI.cancel(currentJob.value.id, currentJob.value.access_token)
+    job.value = response.data
+    currentJob.value = {
+      ...response.data,
+      id: currentJob.value.id,
+      access_token: currentJob.value.access_token,
+      created_at: currentJob.value.created_at
+    }
+    if (response.data.status === 'canceled') {
+      stopPolling()
+      jobStorage.clearJob()
+    }
+  } catch (err) {
+    error.value = err.response?.data?.detail || 'Gagal cancel job.'
+  }
+}
+
 const startPolling = () => {
   stopPolling()
-  fetchJob()
-  polling.value = setInterval(fetchJob, 1500)
+  checkJobStatus()
+  pollingInterval.value = setInterval(checkJobStatus, 2000)
 }
 
 const stopPolling = () => {
@@ -461,7 +562,41 @@ const stopPolling = () => {
     clearInterval(polling.value)
     polling.value = null
   }
+  if (pollingInterval.value) {
+    clearInterval(pollingInterval.value)
+    pollingInterval.value = null
+  }
 }
+
+onMounted(async () => {
+  const savedYoutubeUrl = sessionStorage.getItem(FORM_YOUTUBE_URL_STORAGE_KEY)
+  if (savedYoutubeUrl) {
+    form.value.youtube_url = savedYoutubeUrl
+  }
+
+  console.log('🚀 [VideoClipper] Component mounted, checking for stored job...')
+  const storedJob = jobStorage.getJob()
+  console.log('🔍 [VideoClipper] Stored job found:', storedJob)
+  
+  if (storedJob && jobStorage.isJobValid(storedJob)) {
+    console.log('✅ [VideoClipper] Valid job found, restoring...')
+    currentJob.value = storedJob
+    jobId.value = storedJob.id
+    await checkJobStatus()
+    if (currentJob.value && ['queued', 'running'].includes(currentJob.value.status)) {
+      startPolling()
+    }
+  } else {
+    console.log('ℹ️ [VideoClipper] No valid stored job found')
+  }
+})
+
+watch(
+  () => form.value.youtube_url,
+  (url) => {
+    sessionStorage.setItem(FORM_YOUTUBE_URL_STORAGE_KEY, url || '')
+  }
+)
 
 onBeforeUnmount(stopPolling)
 </script>

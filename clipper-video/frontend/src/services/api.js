@@ -12,7 +12,8 @@ const apiClient = axios.create({
 
 export const jobAPI = {
   create: (data) => apiClient.post('/jobs/', data),
-  get: (id) => apiClient.get(`/jobs/${id}/`),
+  get: (id, config = {}) => apiClient.get(`/jobs/${id}/`, config),
+  cancel: (id, token) => apiClient.post(`/jobs/${id}/cancel/`, { token }),
   downloadZipUrl: (id) => `${API_BASE_URL}/jobs/${id}/download-zip/`,
   createLocal: (formData) => apiClient.post('/jobs/upload/', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }

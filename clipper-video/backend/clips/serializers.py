@@ -192,6 +192,8 @@ class JobDetailSerializer(serializers.ModelSerializer):
             'progress',
             'message',
             'error',
+            'cancel_requested',
+            'created_at',
             'results',
         ]
 

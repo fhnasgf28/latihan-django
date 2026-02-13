@@ -1,5 +1,5 @@
 import uuid
-
+import secrets
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -47,6 +47,7 @@ class Job(models.Model):
         ('running', 'Running'),
         ('done', 'Done'),
         ('failed', 'Failed'),
+        ('canceled', 'Canceled'),
     ]
 
     MODE_CHOICES = [
@@ -86,8 +87,15 @@ class Job(models.Model):
     progress = models.IntegerField(default=0)
     message = models.TextField(blank=True, default='')
     error = models.TextField(null=True, blank=True)
+    cancel_requested = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    access_token = models.CharField(max_length=64, unique=True, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.access_token:
+            self.access_token = secrets.token_urlsafe(64)
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['-created_at']

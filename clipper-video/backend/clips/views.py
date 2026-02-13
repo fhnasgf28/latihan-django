@@ -1,3 +1,4 @@
+from datetime import timedelta,timezone, datetime
 from rest_framework import viewsets, status, filters
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -5,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
+from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404
 from .models import Video, Clip, Job
 from .serializers import VideoSerializer, VideoListSerializer, ClipSerializer, JobCreateSerializer, JobDetailSerializer, LocalJobUploadSerializer
@@ -103,7 +105,14 @@ class JobCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         job = serializer.save(status='queued', progress=0, message='Job queued', source_type='youtube')
         process_job.delay(str(job.id))
-        return Response({'id': str(job.id), 'status': job.status}, status=status.HTTP_201_CREATED)
+        return Response({
+            'id': str(job.id),
+            'status': job.status,
+            'progress': job.progress,
+            'message': job.message,
+            'created_at': job.created_at,
+            'access_token': job.access_token,
+        }, status=status.HTTP_201_CREATED)
 
 
 class LocalJobUploadView(APIView):
@@ -151,7 +160,14 @@ class LocalJobUploadView(APIView):
         job.save(update_fields=['local_video_path', 'updated_at'])
 
         process_job.delay(str(job.id))
-        return Response({'id': str(job.id), 'status': job.status}, status=status.HTTP_201_CREATED)
+        return Response({
+            'id': str(job.id),
+            'status': job.status,
+            'progress': job.progress,
+            'message': job.message,
+            'created_at': job.created_at,
+            'access_token': job.access_token,
+        }, status=status.HTTP_201_CREATED)
 
 
 class JobDetailView(APIView):
@@ -159,6 +175,37 @@ class JobDetailView(APIView):
 
     def get(self, request, job_id):
         job = get_object_or_404(Job, id=job_id)
+        serializer = JobDetailSerializer(job)
+        return Response(serializer.data)
+
+class JobCancelView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, job_id):
+        job = get_object_or_404(Job, id=job_id)
+        token = (
+            request.data.get('token')
+            or request.GET.get('token')
+            or request.headers.get('X-Job-Token')
+        )
+        if not token or token != job.access_token:
+            raise PermissionDenied('Invalid token')
+
+        if job.status in ['done', 'failed', 'canceled']:
+            serializer = JobDetailSerializer(job)
+            return Response(serializer.data)
+
+        if job.status == 'queued':
+            job.status = 'canceled'
+            job.progress = 100
+            job.message = 'Canceled by user'
+            job.cancel_requested = True
+            job.save(update_fields=['status', 'progress', 'message', 'cancel_requested', 'updated_at'])
+        else:
+            job.cancel_requested = True
+            job.message = 'Cancel requested by user'
+            job.save(update_fields=['cancel_requested', 'message', 'updated_at'])
+
         serializer = JobDetailSerializer(job)
         return Response(serializer.data)
 
@@ -180,3 +227,16 @@ class JobZipView(APIView):
         temp_file.seek(0)
         response = FileResponse(open(temp_file.name, 'rb'), as_attachment=True, filename=f'job_{job.id}.zip')
         return response
+
+class JobViewSet(viewsets.ModelViewSet):
+    def get_queryset(self):
+        cutoff = timezone.now() - timedelta(hours=24)
+        return Job.objects.filter(created_at__gte=cutoff)
+    
+    def retrieve(self, request, pk=None):
+        job = self.get_object()
+        token = request.GET.get('token') or request.headers.get('X-Job-Token')
+        if not token or token != job.access_token:
+            raise PermissionDenied('Invalid token')
+        serializer = self.get_serializer(job)
+        return Response(serializer.data)

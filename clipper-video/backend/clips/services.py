@@ -1,12 +1,51 @@
 import json
+import os
+import shutil
+import sys
 from pathlib import Path
 
 from .utils import run_command, run_command_stream, escape_ffmpeg_path, format_timecode
 
 
+def _get_yt_dlp_cmd():
+    env_path = os.getenv('YT_DLP_PATH')
+    if env_path:
+        return [env_path]
+
+    binary = shutil.which('yt-dlp')
+    if binary:
+        return [binary]
+
+    # Fallback: use module execution if PATH is not available (common on worker services).
+    return [sys.executable, '-m', 'yt_dlp']
+
+
 def fetch_video_info(url):
-    output = run_command(['yt-dlp', '-J', '--no-playlist', url])
-    return json.loads(output)
+    yt_dlp_cmd = _get_yt_dlp_cmd()
+    try:
+        # Add --no-check-certificate and --user-agent for better compatibility
+        output = run_command([
+            *yt_dlp_cmd,
+            '-J', 
+            '--no-playlist',
+            '--no-check-certificate',
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            url,
+        ])
+        return json.loads(output)
+    except Exception as e:
+        # Try fallback without user-agent if first attempt fails
+        try:
+            output = run_command([
+                *yt_dlp_cmd,
+                '-J', 
+                '--no-playlist',
+                '--no-check-certificate',
+                url,
+            ])
+            return json.loads(output)
+        except Exception as e2:
+            raise RuntimeError(f'Failed to fetch video info: {str(e2)}')
 
 
 def probe_duration_seconds(video_path):
@@ -49,13 +88,18 @@ def build_format_selector(strict_1080, min_height_fallback):
 def download_video(url, work_dir, selector, on_line=None):
     work_dir = Path(work_dir)
     output_template = str(work_dir / 'source.%(ext)s')
+    yt_dlp_cmd = _get_yt_dlp_cmd()
     run_command_stream([
-        'yt-dlp',
+        *yt_dlp_cmd,
         '--newline',
         '--progress',
         '-f', selector,
         '--merge-output-format', 'mp4',
         '--no-playlist',
+        '--no-check-certificate',
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        '--embed-metadata',
+        '--embed-chapters',
         '-o', output_template,
         url,
     ], on_line=on_line)
@@ -73,12 +117,15 @@ def download_section(url, work_dir, selector, start, end, index):
     work_dir = Path(work_dir)
     output_template = str(work_dir / f'section_{index:03d}.%(ext)s')
     section = f"*{format_timecode(start)}-{format_timecode(end)}"
+    yt_dlp_cmd = _get_yt_dlp_cmd()
     run_command([
-        'yt-dlp',
+        *yt_dlp_cmd,
         '--download-sections', section,
         '-f', selector,
         '--merge-output-format', 'mp4',
         '--no-playlist',
+        '--no-check-certificate',
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         '-o', output_template,
         url,
     ])
@@ -96,14 +143,17 @@ def download_subtitles(url, work_dir, langs):
     work_dir = Path(work_dir)
     lang_arg = ','.join(langs)
     output_template = str(work_dir / 'subs.%(ext)s')
+    yt_dlp_cmd = _get_yt_dlp_cmd()
     run_command([
-        'yt-dlp',
+        *yt_dlp_cmd,
         '--write-subs',
         '--write-auto-subs',
         '--sub-langs', lang_arg,
         '--convert-subs', 'srt',
         '--skip-download',
         '--no-playlist',
+        '--no-check-certificate',
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         '-o', output_template,
         url,
     ])
