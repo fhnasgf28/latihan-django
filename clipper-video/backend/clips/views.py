@@ -13,6 +13,8 @@ from .serializers import VideoSerializer, VideoListSerializer, ClipSerializer, J
 from django.db.models import Q
 from django.conf import settings
 from pathlib import Path
+from celery.result import AsyncResult
+import shutil
 import zipfile
 import tempfile
 
@@ -104,7 +106,9 @@ class JobCreateView(APIView):
         serializer = JobCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         job = serializer.save(status='queued', progress=0, message='Job queued', source_type='youtube')
-        process_job.delay(str(job.id))
+        task = process_job.delay(str(job.id))
+        job.celery_task_id = task.id
+        job.save(update_fields=['celery_task_id', 'updated_at'])
         return Response({
             'id': str(job.id),
             'status': job.status,
@@ -159,7 +163,9 @@ class LocalJobUploadView(APIView):
         job.local_video_path = str(dest.relative_to(settings.MEDIA_ROOT))
         job.save(update_fields=['local_video_path', 'updated_at'])
 
-        process_job.delay(str(job.id))
+        task = process_job.delay(str(job.id))
+        job.celery_task_id = task.id
+        job.save(update_fields=['celery_task_id', 'updated_at'])
         return Response({
             'id': str(job.id),
             'status': job.status,
@@ -195,16 +201,20 @@ class JobCancelView(APIView):
             serializer = JobDetailSerializer(job)
             return Response(serializer.data)
 
-        if job.status == 'queued':
-            job.status = 'canceled'
-            job.progress = 100
-            job.message = 'Canceled by user'
-            job.cancel_requested = True
-            job.save(update_fields=['status', 'progress', 'message', 'cancel_requested', 'updated_at'])
-        else:
-            job.cancel_requested = True
-            job.message = 'Cancel requested by user'
-            job.save(update_fields=['cancel_requested', 'message', 'updated_at'])
+        job.status = 'canceled'
+        job.progress = 100
+        job.message = 'Canceled by user'
+        job.cancel_requested = True
+        job.save(update_fields=['status', 'progress', 'message', 'cancel_requested', 'updated_at'])
+
+        if job.celery_task_id:
+            try:
+                AsyncResult(job.celery_task_id).revoke(terminate=True, signal='SIGTERM')
+            except Exception:
+                pass
+
+        job_dir = Path(settings.MEDIA_ROOT) / 'jobs' / str(job.id)
+        shutil.rmtree(job_dir, ignore_errors=True)
 
         serializer = JobDetailSerializer(job)
         return Response(serializer.data)

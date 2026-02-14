@@ -535,16 +535,20 @@ const cancelJob = async () => {
   }
   try {
     const response = await jobAPI.cancel(currentJob.value.id, currentJob.value.access_token)
-    job.value = response.data
-    currentJob.value = {
-      ...response.data,
-      id: currentJob.value.id,
-      access_token: currentJob.value.access_token,
-      created_at: currentJob.value.created_at
-    }
-    if (response.data.status === 'canceled') {
+    if (['canceled', 'failed', 'done'].includes(response.data.status)) {
       stopPolling()
       jobStorage.clearJob()
+      job.value = null
+      currentJob.value = null
+      jobId.value = ''
+    } else {
+      job.value = response.data
+      currentJob.value = {
+        ...response.data,
+        id: currentJob.value.id,
+        access_token: currentJob.value.access_token,
+        created_at: currentJob.value.created_at
+      }
     }
   } catch (err) {
     error.value = err.response?.data?.detail || 'Gagal cancel job.'

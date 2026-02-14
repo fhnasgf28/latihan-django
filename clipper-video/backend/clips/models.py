@@ -88,6 +88,7 @@ class Job(models.Model):
     message = models.TextField(blank=True, default='')
     error = models.TextField(null=True, blank=True)
     cancel_requested = models.BooleanField(default=False)
+    celery_task_id = models.CharField(max_length=255, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     access_token = models.CharField(max_length=64, unique=True, null=True, blank=True)

@@ -29,14 +29,18 @@ MAX_DURATION_SECONDS = 2 * 60 * 60
 MAX_CLIPS = 60
 
 
+class JobCanceledError(Exception):
+    pass
+
+
 def update_job(job, **fields):
+    # Prevent any stale worker process from overwriting canceled state.
+    job.refresh_from_db(fields=['status', 'cancel_requested'])
+    if (job.status == 'canceled' or job.cancel_requested) and fields.get('status') != 'canceled':
+        raise JobCanceledError('Canceled by user')
     for key, value in fields.items():
         setattr(job, key, value)
     job.save(update_fields=list(fields.keys()) + ['updated_at'])
-
-
-class JobCanceledError(Exception):
-    pass
 
 
 def ensure_not_canceled(job):
