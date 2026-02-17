@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import VideoViewSet, ClipViewSet, JobCreateView, JobDetailView, JobZipView, LocalJobUploadView, JobCancelView
+from .views import VideoViewSet, ClipViewSet, JobCreateView, JobDetailView, JobZipView, LocalJobUploadView, JobCancelView, SubsWordsView
 
 router = DefaultRouter()
 router.register(r'videos', VideoViewSet, basename='video')
@@ -13,4 +13,6 @@ urlpatterns = [
     path('jobs/<uuid:job_id>/', JobDetailView.as_view(), name='job-detail'),
     path('jobs/<uuid:job_id>/cancel/', JobCancelView.as_view(), name='job-cancel'),
     path('jobs/<uuid:job_id>/download-zip/', JobZipView.as_view(), name='job-zip'),
+    path('subs/<uuid:job_id>/words.json', SubsWordsView.as_view(), name='subs-words-job'),
+    path('subs/<uuid:job_id>/<int:clip_idx>/words.json', SubsWordsView.as_view(), name='subs-words-clip'),
 ]

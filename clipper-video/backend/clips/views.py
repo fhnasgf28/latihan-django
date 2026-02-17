@@ -19,6 +19,9 @@ import zipfile
 import tempfile
 
 from .tasks import process_job
+import json
+from pathlib import Path
+from django.conf import settings
 
 
 class VideoViewSet(viewsets.ModelViewSet):
@@ -142,9 +145,12 @@ class LocalJobUploadView(APIView):
             auto_captions=serializer.validated_data.get('auto_captions', False),
             auto_caption_lang=serializer.validated_data.get('auto_caption_lang', 'id'),
             whisper_model=serializer.validated_data.get('whisper_model', 'tiny'),
+            subtitle_font=serializer.validated_data.get('subtitle_font', 'Arial'),
+            subtitle_size=serializer.validated_data.get('subtitle_size', 14),
             orientation=serializer.validated_data.get('orientation', 'landscape'),
             max_clips=serializer.validated_data.get('max_clips', 0),
             download_sections=False,
+            burn_word_level=serializer.validated_data.get('burn_word_level', False),
             status='queued',
             progress=0,
             message='Job queued',
@@ -250,3 +256,42 @@ class JobViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('Invalid token')
         serializer = self.get_serializer(job)
         return Response(serializer.data)
+
+
+class SubsWordsView(APIView):
+    """Return per-word tokens JSON for a job or a specific clip.
+
+    Paths:
+      - /api/subs/<job_id>/words.json  -> returns {clip_idx: [words,...], ...}
+      - /api/subs/<job_id>/<clip_idx>/words.json -> returns [words,...]
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, job_id, clip_idx=None):
+        job = get_object_or_404(Job, id=job_id)
+        token = request.GET.get('token') or request.headers.get('X-Job-Token')
+        if not token or token != job.access_token:
+            raise PermissionDenied('Invalid token')
+
+        job_dir = Path(settings.MEDIA_ROOT) / 'jobs' / str(job.id)
+        if not job_dir.exists():
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+
+        if clip_idx is not None:
+            fpath = job_dir / f'clip_{int(clip_idx):03d}_words.json'
+            if not fpath.exists():
+                return Response([], status=status.HTTP_200_OK)
+            data = json.loads(fpath.read_text(encoding='utf-8'))
+            return Response(data)
+
+        # return mapping of clip idx -> words list
+        out = {}
+        for path in sorted(job_dir.glob('clip_*_words.json')):
+            # filename like clip_001_words.json
+            name = path.name
+            try:
+                idx = int(name.split('_')[1])
+            except Exception:
+                continue
+            out[idx] = json.loads(path.read_text(encoding='utf-8'))
+        return Response(out)

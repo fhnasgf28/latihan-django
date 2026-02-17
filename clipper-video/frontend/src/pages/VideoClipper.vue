@@ -82,7 +82,8 @@
           </div>
         </div>
 
-        <div>
+        <!-- This part should be hidden because it is correct, should be use stream mode -->
+        <div v-if="false">
           <label class="text-sm font-medium text-slate-200">Mode download</label>
           <div class="mt-2 flex items-center gap-3">
             <label class="flex items-center gap-2 text-sm text-slate-300">
@@ -196,6 +197,33 @@
               </select>
             </div>
           </div>
+          <div class="mt-3 grid gap-3 md:grid-cols-2" :class="!form.burn_subtitles ? 'opacity-50' : ''">
+            <div>
+              <span class="text-xs text-slate-400">Font</span>
+              <select
+                v-model="form.subtitle_font"
+                :disabled="!form.burn_subtitles"
+                class="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+              >
+                <option value="Arial">Arial</option>
+                <option value="Roboto">Roboto</option>
+                <option value="Noto Sans">Noto Sans</option>
+                <option value="Helvetica">Helvetica</option>
+                <option value="Verdana">Verdana</option>
+              </select>
+            </div>
+            <div>
+              <span class="text-xs text-slate-400">Font size</span>
+              <input
+                v-model.number="form.subtitle_size"
+                :disabled="!form.burn_subtitles"
+                type="number"
+                min="14"
+                max="72"
+                class="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+              />
+            </div>
+          </div>
         </div>
 
         <button
@@ -295,7 +323,9 @@ const form = ref({
   whisper_model: 'tiny',
   subtitle_primary: 'id',
   subtitle_fallback_enabled: true,
-  subtitle_fallback: 'en'
+  subtitle_fallback: 'en',
+  subtitle_font: 'Arial',
+  subtitle_size: 28
 })
 
 const jobId = ref('')
@@ -366,6 +396,17 @@ const removeRange = (index) => {
   form.value.ranges.splice(index, 1)
 }
 
+const normalizeSubtitleFont = () => {
+  const value = String(form.value.subtitle_font || '').trim()
+  return value || 'Arial'
+}
+
+const normalizeSubtitleSize = () => {
+  const parsed = Number(form.value.subtitle_size)
+  if (!Number.isFinite(parsed)) return 28
+  return Math.min(72, Math.max(14, Math.round(parsed)))
+}
+
 const buildPayload = () => ({
   youtube_url: form.value.youtube_url,
   mode: form.value.mode,
@@ -380,6 +421,8 @@ const buildPayload = () => ({
   auto_captions: form.value.auto_captions,
   auto_caption_lang: form.value.auto_caption_lang,
   whisper_model: form.value.whisper_model,
+  subtitle_font: normalizeSubtitleFont(),
+  subtitle_size: normalizeSubtitleSize(),
   subtitle_langs: (form.value.burn_subtitles || form.value.auto_captions) ? subtitleLangs.value : []
 })
 
@@ -466,7 +509,20 @@ const submitJob = async () => {
     startPolling()
     console.log('🔄 [VideoClipper] Started polling for new job')
   } catch (err) {
-    error.value = err.response?.data?.detail || err.response?.data?.error || err.message
+    const data = err.response?.data
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      const firstKey = Object.keys(data)[0]
+      const firstVal = data[firstKey]
+      if (Array.isArray(firstVal) && firstVal.length > 0) {
+        error.value = `${firstKey}: ${firstVal[0]}`
+      } else if (typeof firstVal === 'string') {
+        error.value = `${firstKey}: ${firstVal}`
+      } else {
+        error.value = data.detail || data.error || err.message
+      }
+    } else {
+      error.value = err.response?.data?.detail || err.response?.data?.error || err.message
+    }
   } finally {
     loading.value = false
   }

@@ -69,6 +69,9 @@ class JobCreateSerializer(serializers.ModelSerializer):
             'auto_captions',
             'auto_caption_lang',
             'whisper_model',
+            'subtitle_font',
+            'subtitle_size',
+            'burn_word_level',
             'orientation',
             'max_clips',
             'download_sections',
@@ -97,6 +100,8 @@ class JobCreateSerializer(serializers.ModelSerializer):
         auto_captions = data.get('auto_captions', False)
         auto_caption_lang = data.get('auto_caption_lang', 'id')
         whisper_model = data.get('whisper_model', 'tiny')
+        subtitle_font = (data.get('subtitle_font') or 'Arial').strip()
+        subtitle_size = data.get('subtitle_size', 14)
         orientation = data.get('orientation', 'landscape')
         max_clips = data.get('max_clips', 0)
         download_sections = data.get('download_sections', False)
@@ -152,12 +157,27 @@ class JobCreateSerializer(serializers.ModelSerializer):
         if auto_captions and auto_caption_lang not in ['id', 'en']:
             raise serializers.ValidationError({'auto_caption_lang': 'auto_caption_lang harus id atau en'})
 
-        if whisper_model not in ['tiny', 'base', 'small']:
-            raise serializers.ValidationError({'whisper_model': 'whisper_model harus tiny/base/small'})
+        if whisper_model not in ['tiny', 'base', 'small', 'medium']:
+            raise serializers.ValidationError({'whisper_model': 'whisper_model harus tiny/base/small/medium'})
+
+        if len(subtitle_font) < 1 or len(subtitle_font) > 100:
+            raise serializers.ValidationError({'subtitle_font': 'subtitle_font harus 1-100 karakter'})
+
+        if subtitle_size in [None, '']:
+            subtitle_size = 28
+        try:
+            subtitle_size = int(subtitle_size)
+        except (TypeError, ValueError):
+            raise serializers.ValidationError({'subtitle_size': 'subtitle_size harus angka'})
+
+        if subtitle_size < 14 or subtitle_size > 72:
+            raise serializers.ValidationError({'subtitle_size': 'subtitle_size harus antara 14 sampai 72'})
 
         if orientation not in ['landscape', 'portrait']:
             raise serializers.ValidationError({'orientation': 'orientation harus landscape atau portrait'})
 
+        data['subtitle_font'] = subtitle_font
+        data['subtitle_size'] = subtitle_size
         return data
 
     def create(self, validated_data):
@@ -176,6 +196,10 @@ class JobCreateSerializer(serializers.ModelSerializer):
             validated_data['auto_caption_lang'] = 'id'
         if 'whisper_model' not in validated_data:
             validated_data['whisper_model'] = 'tiny'
+        if 'subtitle_font' not in validated_data:
+            validated_data['subtitle_font'] = 'Arial'
+        if 'subtitle_size' not in validated_data:
+            validated_data['subtitle_size'] = 28
         if 'orientation' not in validated_data:
             validated_data['orientation'] = 'landscape'
         return super().create(validated_data)
@@ -234,7 +258,10 @@ class LocalJobUploadSerializer(serializers.Serializer):
 
     auto_captions = serializers.BooleanField(required=False, default=False)
     auto_caption_lang = serializers.ChoiceField(choices=['id', 'en'], required=False, default='id')
-    whisper_model = serializers.ChoiceField(choices=['tiny', 'base', 'small'], required=False, default='tiny')
+    whisper_model = serializers.ChoiceField(choices=['tiny', 'base', 'small', 'medium'], required=False, default='tiny')
+    subtitle_font = serializers.CharField(required=False, default='Arial', max_length=100)
+    subtitle_size = serializers.IntegerField(required=False, default=28, min_value=14, max_value=72)
+    burn_word_level = serializers.BooleanField(required=False, default=False)
 
     orientation = serializers.ChoiceField(choices=['landscape', 'portrait'], required=False, default='landscape')
     max_clips = serializers.IntegerField(required=False, default=0, min_value=0, max_value=60)

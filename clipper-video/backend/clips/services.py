@@ -5,6 +5,9 @@ import sys
 from pathlib import Path
 
 from .utils import run_command, run_command_stream, escape_ffmpeg_path, format_timecode
+from .reframe import compute_dominant_person_crop
+from .srt_utils import render_ass_from_words
+from tempfile import NamedTemporaryFile
 
 
 def _get_yt_dlp_cmd():
@@ -215,8 +218,11 @@ def split_video(source_path, ranges, work_dir, fast_copy=True):
     return clips
 
 
-def burn_subtitles(clip_path, srt_path, output_path):
-    subtitle_filter = f"subtitles='{escape_ffmpeg_path(srt_path)}'"
+def burn_subtitles(clip_path, srt_path, output_path, font_name='Arial', font_size=28):
+    safe_font_name = (font_name or 'Arial').replace("'", '')
+    safe_font_size = max(14, min(72, int(font_size or 28)))
+    style = f"FontName={safe_font_name},FontSize={safe_font_size},Outline=1,Shadow=0,MarginV=28"
+    subtitle_filter = f"subtitles='{escape_ffmpeg_path(srt_path)}':force_style='{style}'"
     run_command([
         'ffmpeg',
         '-y',
@@ -227,12 +233,55 @@ def burn_subtitles(clip_path, srt_path, output_path):
     ])
 
 
+def burn_subtitles_from_words(clip_path, words_json_path, output_path, font_name='Arial', font_size=28):
+    """Create ASS from words JSON then burn into video using ffmpeg.
+
+    words_json_path: path to JSON file with [{'word','start','end','speaker'?}, ...]
+    """
+    import json
+    from pathlib import Path
+
+    p = Path(words_json_path)
+    if not p.exists():
+        raise RuntimeError('Words JSON file not found')
+    words = json.loads(p.read_text(encoding='utf-8'))
+    ass_text = render_ass_from_words(words, font_name=font_name, font_size=font_size)
+    # write to temp file
+    with NamedTemporaryFile('w', suffix='.ass', delete=False, encoding='utf-8') as tmp:
+        tmp.write(ass_text)
+        tmp_path = tmp.name
+
+    try:
+        subtitle_filter = f"subtitles='{escape_ffmpeg_path(tmp_path)}'"
+        run_command([
+            'ffmpeg',
+            '-y',
+            '-i', str(clip_path),
+            '-vf', subtitle_filter,
+            '-c:a', 'copy',
+            str(output_path),
+        ])
+    finally:
+        try:
+            Path(tmp_path).unlink()
+        except Exception:
+            pass
+
+
 def convert_to_portrait(input_path, output_path):
+    debug_reframe = os.getenv('REFRAME_DEBUG') == '1'
+    crop = compute_dominant_person_crop(str(input_path), debug=debug_reframe)
+    if crop:
+        crop_x, crop_y, crop_w, crop_h = crop
+        vf = f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y},scale=1080:1920"
+    else:
+        vf = 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920'
+
     run_command([
         'ffmpeg',
         '-y',
         '-i', str(input_path),
-        '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
+        '-vf', vf,
         '-c:v', 'libx264',
         '-c:a', 'aac',
         '-movflags', '+faststart',

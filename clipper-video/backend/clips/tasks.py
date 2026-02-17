@@ -1,4 +1,5 @@
 import shutil
+import re
 from pathlib import Path
 
 from celery import shared_task
@@ -20,13 +21,16 @@ from .services import (
     split_video,
     burn_subtitles,
     convert_to_portrait,
+    burn_subtitles_from_words,
 )
 from .srt_utils import write_trimmed_srt
 from .utils import parse_timecode, parse_yt_dlp_progress
-from .stt import extract_audio, transcribe_to_srt
+import json
+from .stt import extract_audio, transcribe_to_srt_from_words, transcribe_to_word_tokens
 
 MAX_DURATION_SECONDS = 2 * 60 * 60
 MAX_CLIPS = 60
+CLIP_OUTPUT_RE = re.compile(r"^clip_(\d{3})(?:_caption)?\.mp4$")
 
 
 class JobCanceledError(Exception):
@@ -47,6 +51,25 @@ def ensure_not_canceled(job):
     job.refresh_from_db(fields=['cancel_requested', 'status'])
     if job.cancel_requested or job.status == 'canceled':
         raise JobCanceledError('Canceled by user')
+
+
+def iter_output_clips(job_dir):
+    """Yield (clip_idx, clip_path) for final clip outputs.
+
+    Prefer *_caption.mp4 when both base and caption variants exist.
+    """
+    selected = {}
+    for clip_path in sorted(job_dir.glob('clip_*.mp4')):
+        match = CLIP_OUTPUT_RE.match(clip_path.name)
+        if not match:
+            continue
+        clip_idx = int(match.group(1))
+        previous = selected.get(clip_idx)
+        if previous is None or clip_path.name.endswith('_caption.mp4'):
+            selected[clip_idx] = clip_path
+
+    for clip_idx in sorted(selected):
+        yield clip_idx, selected[clip_idx]
 
 
 @shared_task
@@ -173,36 +196,41 @@ def process_job(job_id):
         subtitle_file = None
         per_clip_whisper = False
         wants_subtitles = job.burn_subtitles or job.auto_captions
-        if wants_subtitles and job.source_type == 'youtube':
+        prefer_auto_asr = bool(job.auto_captions)
+
+        if wants_subtitles and job.source_type == 'youtube' and not prefer_auto_asr:
             update_job(job, progress=60, message='Fetching subtitles')
             try:
                 srt_files = download_subtitles(job.youtube_url, work_dir, job.subtitle_langs or ['id', 'en'])
                 subtitle_file = pick_subtitle_file(srt_files, job.subtitle_langs or ['id', 'en'])
                 if not subtitle_file:
-                    update_job(job, message='No YouTube subtitles, checking auto captions')
+                    update_job(job, message='No YouTube subtitles found')
             except Exception:
-                update_job(job, message='No YouTube subtitles, checking auto captions')
-        elif wants_subtitles:
-            update_job(job, progress=60, message='No YouTube subtitles for local source, checking auto captions')
+                update_job(job, message='No YouTube subtitles found')
+        elif wants_subtitles and not prefer_auto_asr:
+            update_job(job, progress=60, message='No YouTube subtitles for local source')
 
-        if not subtitle_file and job.auto_captions:
+        if prefer_auto_asr:
             if (job.source_type == 'youtube' and job.download_sections) or max_clips <= 3:
                 per_clip_whisper = True
-                update_job(job, message='Auto captions per clip (Whisper)')
+                update_job(job, message='Auto captions per clip (word-level)')
             else:
-                update_job(job, message='Auto captions (Whisper)')
+                update_job(job, message='Auto captions full audio (word-level)')
                 audio_path = work_dir / 'whisper_full.wav'
                 extract_audio(source_path, audio_path)
                 full_srt = work_dir / 'whisper_full.srt'
-                transcribe_to_srt(
+                transcribe_to_srt_from_words(
                     audio_path,
                     full_srt,
                     language=job.auto_caption_lang,
                     model_size=job.whisper_model,
+                    pause_threshold=0.35,
+                    max_words_per_line=6,
+                    max_chars=40,
                 )
                 ensure_not_canceled(job)
                 subtitle_file = full_srt
-        elif job.burn_subtitles and not subtitle_file and not job.auto_captions:
+        elif job.burn_subtitles and not subtitle_file:
             update_job(job, message='Burn subtitles aktif tapi subtitle tidak tersedia; hasil tanpa caption')
 
         total = len(ranges)
@@ -222,11 +250,14 @@ def process_job(job_id):
                 if per_clip_whisper:
                     audio_path = work_dir / f'clip_{idx:03d}.wav'
                     extract_audio(clip_path, audio_path)
-                    count = transcribe_to_srt(
+                    count = transcribe_to_srt_from_words(
                         audio_path,
                         output_srt,
                         language=job.auto_caption_lang,
                         model_size=job.whisper_model,
+                        pause_threshold=0.35,
+                        max_words_per_line=6,
+                        max_chars=40,
                     )
                     ensure_not_canceled(job)
                 elif subtitle_file:
@@ -248,7 +279,13 @@ def process_job(job_id):
             output_video = job_dir / f'clip_{idx:03d}_caption.mp4'
 
             if job.burn_subtitles and output_srt and count > 0:
-                burn_subtitles(clip_path, output_srt, output_video)
+                burn_subtitles(
+                    clip_path,
+                    output_srt,
+                    output_video,
+                    font_name=job.subtitle_font,
+                    font_size=job.subtitle_size,
+                )
             else:
                 shutil.copyfile(clip_path, output_video)
 
@@ -256,6 +293,13 @@ def process_job(job_id):
             update_job(job, progress=progress, message=f'Processing clip {idx}/{total}')
 
         update_job(job, status='done', progress=100, message='Done')
+        try:
+            produce_word_tokens.delay(str(job.id))
+            # Burn word-level subtitles jika enabled
+            if job.burn_word_level:
+                burn_clips_with_word_subtitles.delay(str(job.id))
+        except Exception:
+            pass
         shutil.rmtree(work_dir, ignore_errors=True)
     except JobCanceledError:
         update_job(job, status='canceled', progress=100, message='Canceled by user', cancel_requested=True)
@@ -271,3 +315,84 @@ def process_job(job_id):
             shutil.rmtree(work_dir, ignore_errors=True)
         except Exception:
             pass
+
+
+@shared_task
+def produce_word_tokens(job_id):
+    """Generate per-word timestamps from per-clip audio using ASR.
+
+    Uses transcribe_to_word_tokens which attempts stable-ts or falls back to
+    faster-whisper with approximate word timing.
+    """
+    job = Job.objects.get(id=job_id)
+    job_dir = Path(settings.MEDIA_ROOT) / 'jobs' / str(job.id)
+    if not job_dir.exists():
+        return 0
+    produced = 0
+    for clip_idx, clip_path in iter_output_clips(job_dir):
+        clip_key = f'clip_{clip_idx:03d}'
+        audio_path = job_dir / f'{clip_key}_words_temp.wav'
+        try:
+            extract_audio(clip_path, audio_path)
+            words = transcribe_to_word_tokens(
+                audio_path,
+                language=job.auto_caption_lang or 'id',
+                model_size=job.whisper_model or 'tiny'
+            )
+        except Exception:
+            audio_path.unlink(missing_ok=True)
+            continue
+        audio_path.unlink(missing_ok=True)
+
+        # Round and write to JSON
+        words_rounded = [
+            {
+                'word': w['word'],
+                'start': round(float(w['start']), 3),
+                'end': round(float(w['end']), 3),
+                'confidence': round(float(w.get('confidence', 1.0)), 3),
+            }
+            for w in words
+        ]
+        out_path = job_dir / f'{clip_key}_words.json'
+        out_path.write_text(json.dumps(words_rounded, ensure_ascii=False), encoding='utf-8')
+        produced += 1
+    return produced
+
+
+@shared_task
+def burn_clips_with_word_subtitles(job_id):
+    """Burn word-level subtitles to all clips in a job.
+    
+    Reads clip_*.mp4 and clip_*_words.json, burns to clip_*_word_burned.mp4
+    """
+    job = Job.objects.get(id=job_id)
+    job_dir = Path(settings.MEDIA_ROOT) / 'jobs' / str(job.id)
+    if not job_dir.exists():
+        return 0
+
+    burned = 0
+    for clip_idx, clip_path in iter_output_clips(job_dir):
+        clip_key = f'clip_{clip_idx:03d}'
+        words_json = job_dir / f'{clip_key}_words.json'
+        if not words_json.exists():
+            continue
+
+        try:
+            output_path = clip_path.with_name(f'{clip_path.stem}_word_burned.mp4')
+            burn_subtitles_from_words(
+                clip_path=str(clip_path),
+                words_json_path=str(words_json),
+                output_path=str(output_path),
+                font_name=job.subtitle_font or 'Arial',
+                font_size=job.subtitle_size or 28
+            )
+            burned += 1
+            clip_path.unlink(missing_ok=True)
+            output_path.replace(clip_path)
+        except Exception as e:
+            import logging
+            logging.error(f"Failed to burn clip {clip_key}: {str(e)}")
+            continue
+
+    return burned
