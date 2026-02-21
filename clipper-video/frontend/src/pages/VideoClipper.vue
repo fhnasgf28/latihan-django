@@ -1,6 +1,6 @@
 <template>
   <section class="mt-10 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-    <div class="glass rounded-3xl p-6 md:p-8">
+    <div class="order-2 glass rounded-3xl p-6 md:p-8 lg:order-1">
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="text-2xl font-semibold text-white">Mulai Job</h2>
@@ -74,12 +74,15 @@
             <input
               v-model.number="form.max_clips"
               type="number"
-              min="0"
-              max="60"
+              min="1"
+              max="10"
               class="w-32 rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white"
             />
-            <span class="text-xs text-slate-400">0 = proses semua</span>
+            <span class="text-xs text-slate-400">Maksimal 10 clip per job</span>
           </div>
+          <p v-if="form.max_clips > 10" class="mt-2 text-xs font-semibold text-amber-300">
+            Maksimum clip hanya 10. Turunkan nilainya untuk melanjutkan.
+          </p>
         </div>
 
         <!-- This part should be hidden because it is correct, should be use stream mode -->
@@ -117,7 +120,7 @@
           <p class="mt-2 text-xs text-slate-400">Portrait akan lebih lambat karena perlu re-encode.</p>
         </div>
 
-        <div>
+        <div v-if="false">
           <label class="text-sm font-medium text-slate-200">Quality</label>
           <div class="mt-2 flex flex-wrap items-center gap-3">
             <label class="flex items-center gap-2 text-sm text-slate-300">
@@ -134,7 +137,7 @@
           </div>
         </div>
 
-        <div>
+        <div v-if="false">
           <label class="text-sm font-medium text-slate-200">Subtitle</label>
           <div class="mt-2 flex items-center gap-3">
             <label class="flex items-center gap-2 text-sm text-slate-300">
@@ -230,16 +233,31 @@
           class="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
           type="button"
           @click="submitJob"
-          :disabled="loading"
+          :disabled="loading || isMaxClipsInvalid"
         >
           {{ loading ? 'Mengirim...' : 'Jalankan Job' }}
         </button>
 
         <p v-if="error" class="text-sm font-semibold text-rose-300">{{ error }}</p>
+        <div v-if="activeLimitJobs.length" class="rounded-2xl border border-amber-300/40 bg-amber-500/10 p-4">
+          <p class="text-sm font-semibold text-amber-200">Job aktif saat ini (realtime)</p>
+          <ul class="mt-3 space-y-3">
+            <li v-for="activeJob in activeLimitJobs" :key="activeJob.id" class="space-y-1">
+              <div class="flex items-center justify-between text-xs text-amber-100/90">
+                <span class="uppercase tracking-wide">{{ activeJob.status }}</span>
+                <span class="font-semibold">{{ activeJob.progress }}%</span>
+              </div>
+              <div class="h-2 rounded-full bg-slate-800/90">
+                <div class="h-2 rounded-full bg-gradient-to-r from-amber-300 to-orange-400" :style="{ width: `${activeJob.progress}%` }"></div>
+              </div>
+              <p class="text-xs text-amber-100/80">{{ activeJob.message || '-' }}</p>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
 
-    <div class="glass rounded-3xl p-6 md:p-8">
+    <div class="order-1 glass rounded-3xl p-6 md:p-8 lg:order-2">
       <h2 class="text-2xl font-semibold text-white">Status</h2>
       <p v-if="!job" class="mt-3 text-sm text-slate-400">Belum ada job berjalan.</p>
 
@@ -317,12 +335,12 @@ const form = ref({
   orientation: 'landscape',
   strict_1080: true,
   min_height_fallback: 720,
-  burn_subtitles: false,
-  auto_captions: false,
+  burn_subtitles: true,
+  auto_captions: true,
   auto_caption_lang: 'id',
-  whisper_model: 'tiny',
+  whisper_model: 'small',
   subtitle_primary: 'id',
-  subtitle_fallback_enabled: true,
+  subtitle_fallback_enabled: false,
   subtitle_fallback: 'en',
   subtitle_font: 'Arial',
   subtitle_size: 28
@@ -334,6 +352,8 @@ const loading = ref(false)
 const error = ref('')
 const polling = ref(null)
 const progressPoints = ref([])
+const activeLimitJobs = ref([])
+const activeJobsPolling = ref(null)
 
 const zipUrl = computed(() => (jobId.value ? jobAPI.downloadZipUrl(jobId.value) : '#'))
 
@@ -407,6 +427,12 @@ const normalizeSubtitleSize = () => {
   return Math.min(72, Math.max(14, Math.round(parsed)))
 }
 
+const isMaxClipsInvalid = computed(() => {
+  const parsed = Number(form.value.max_clips)
+  if (!Number.isFinite(parsed)) return true
+  return parsed < 1 || parsed > 10
+})
+
 const buildPayload = () => ({
   youtube_url: form.value.youtube_url,
   mode: form.value.mode,
@@ -455,8 +481,49 @@ const estimateEtaSeconds = () => {
   return remaining / rate
 }
 
+const startActiveJobsPolling = () => {
+  if (!activeLimitJobs.value.length) return
+  if (activeJobsPolling.value) return
+  activeJobsPolling.value = setInterval(async () => {
+    if (!activeLimitJobs.value.length) {
+      return
+    }
+    const refreshed = await Promise.all(
+      activeLimitJobs.value.map(async (item) => {
+        try {
+          const response = await jobAPI.get(item.id)
+          return {
+            id: item.id,
+            status: response.data.status || item.status,
+            progress: Math.min(100, Math.max(0, Math.round(response.data.progress || 0))),
+            message: response.data.message || '',
+          }
+        } catch (_) {
+          return item
+        }
+      })
+    )
+    const stillActive = refreshed.filter((item) => ['queued', 'running'].includes(item.status))
+    activeLimitJobs.value = stillActive
+    if (!stillActive.length) {
+      stopActiveJobsPolling()
+    }
+  }, 2000)
+}
+
+const stopActiveJobsPolling = () => {
+  if (activeJobsPolling.value) {
+    clearInterval(activeJobsPolling.value)
+    activeJobsPolling.value = null
+  }
+}
+
 const submitJob = async () => {
   error.value = ''
+  if (isMaxClipsInvalid.value) {
+    error.value = 'Maksimum clip harus di antara 1 sampai 10.'
+    return
+  }
   if (form.value.source === 'youtube') {
     if (!form.value.youtube_url) {
       error.value = 'URL YouTube wajib diisi.'
@@ -471,6 +538,8 @@ const submitJob = async () => {
   loading.value = true
   try {
     let response
+    activeLimitJobs.value = []
+    stopActiveJobsPolling()
     const payload = buildPayload()
     if (form.value.source === 'youtube') {
       response = await jobAPI.create(payload)
@@ -510,6 +579,18 @@ const submitJob = async () => {
     console.log('🔄 [VideoClipper] Started polling for new job')
   } catch (err) {
     const data = err.response?.data
+    if (err.response?.status === 429 && Array.isArray(data?.active_job_details)) {
+      activeLimitJobs.value = data.active_job_details.map((item) => ({
+        id: item.id,
+        status: item.status || 'queued',
+        progress: Math.min(100, Math.max(0, Math.round(item.progress || 0))),
+        message: item.message || '',
+      }))
+      startActiveJobsPolling()
+    } else {
+      activeLimitJobs.value = []
+      stopActiveJobsPolling()
+    }
     if (data && typeof data === 'object' && !Array.isArray(data)) {
       const firstKey = Object.keys(data)[0]
       const firstVal = data[firstKey]
@@ -658,5 +739,8 @@ watch(
   }
 )
 
-onBeforeUnmount(stopPolling)
+onBeforeUnmount(() => {
+  stopPolling()
+  stopActiveJobsPolling()
+})
 </script>

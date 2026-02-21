@@ -99,7 +99,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
         burn_subtitles = data.get('burn_subtitles', False)
         auto_captions = data.get('auto_captions', False)
         auto_caption_lang = data.get('auto_caption_lang', 'id')
-        whisper_model = data.get('whisper_model', 'tiny')
+        whisper_model = data.get('whisper_model', 'small')
         subtitle_font = (data.get('subtitle_font') or 'Arial').strip()
         subtitle_size = data.get('subtitle_size', 14)
         orientation = data.get('orientation', 'landscape')
@@ -145,7 +145,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
             if max_clips < 0:
                 raise serializers.ValidationError({'max_clips': 'max_clips tidak boleh negatif'})
             if max_clips > 60:
-                raise serializers.ValidationError({'max_clips': 'max_clips maksimal 60'})
+                raise serializers.ValidationError({'max_clips': 'max_clips maksimal 10'})
 
         if download_sections and burn_subtitles:
             # download-sections + burn subtitles bisa lebih lambat untuk banyak clip
@@ -195,7 +195,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
         if 'auto_caption_lang' not in validated_data:
             validated_data['auto_caption_lang'] = 'id'
         if 'whisper_model' not in validated_data:
-            validated_data['whisper_model'] = 'tiny'
+            validated_data['whisper_model'] = 'small'
         if 'subtitle_font' not in validated_data:
             validated_data['subtitle_font'] = 'Arial'
         if 'subtitle_size' not in validated_data:

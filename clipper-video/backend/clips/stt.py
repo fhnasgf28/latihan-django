@@ -18,7 +18,7 @@ except ImportError:
     stable_whisper = None
     HAS_STABLE_WHISPER = False
 
-from .utils import format_srt_time, run_command
+from .utils import format_srt_time
 from .srt_utils import dedupe_entries, export_word_srt_from_tokens, export_word_webvtt_from_tokens
 
 _MODEL_CACHE: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
@@ -63,24 +63,6 @@ def get_whisper_model(model_size: str) -> Dict[str, Any]:
         return wrapper
 
     raise RuntimeError("Neither faster_whisper nor stable_whisper is installed")
-
-
-def extract_audio(input_path: str, output_path: str) -> str:
-    run_command(
-        [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(input_path),
-            "-ac",
-            "1",
-            "-ar",
-            "16000",
-            "-vn",
-            str(output_path),
-        ]
-    )
-    return output_path
 
 
 def _clean_word(word: str) -> str:

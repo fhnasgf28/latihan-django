@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import sys
+import importlib.util
 from pathlib import Path
 
 from .utils import run_command, run_command_stream, escape_ffmpeg_path, format_timecode
@@ -15,11 +16,15 @@ def _get_yt_dlp_cmd():
     if env_path:
         return [env_path]
 
+    # Prefer module execution from the active Python env (e.g. pyenv virtualenv).
+    if importlib.util.find_spec('yt_dlp') is not None:
+        return [sys.executable, '-m', 'yt_dlp']
+
     binary = shutil.which('yt-dlp')
     if binary:
         return [binary]
 
-    # Fallback: use module execution if PATH is not available (common on worker services).
+    # Final fallback if PATH/module detection misses.
     return [sys.executable, '-m', 'yt_dlp']
 
 

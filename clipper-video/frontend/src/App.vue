@@ -9,7 +9,8 @@
               Clip cepat, subtitle rapi, semua lokal.
             </h1>
             <p class="mt-4 text-base text-slate-200">
-              Masukkan URL YouTube, tentukan mode, dan biarkan worker mengerjakan semuanya.
+              Masukkan URL YouTube, tentukan mode, dan biarkan worker mengerjakan semuanya,
+              <span class="text-orange-300"> lakukan aktivitas yang lain, sementara job sedang berjalan.</span>
             </p>
           </div>
           <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-6 text-sm text-slate-200">

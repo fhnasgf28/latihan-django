@@ -26,7 +26,7 @@ from .services import (
 from .srt_utils import write_trimmed_srt
 from .utils import parse_timecode, parse_yt_dlp_progress
 import json
-from .stt import extract_audio, transcribe_to_srt_from_words, transcribe_to_word_tokens
+from .stt import transcribe_to_srt_from_words, transcribe_to_word_tokens
 
 MAX_DURATION_SECONDS = 2 * 60 * 60
 MAX_CLIPS = 60
@@ -216,11 +216,9 @@ def process_job(job_id):
                 update_job(job, message='Auto captions per clip (word-level)')
             else:
                 update_job(job, message='Auto captions full audio (word-level)')
-                audio_path = work_dir / 'whisper_full.wav'
-                extract_audio(source_path, audio_path)
                 full_srt = work_dir / 'whisper_full.srt'
                 transcribe_to_srt_from_words(
-                    audio_path,
+                    source_path,
                     full_srt,
                     language=job.auto_caption_lang,
                     model_size=job.whisper_model,
@@ -248,10 +246,8 @@ def process_job(job_id):
             if wants_subtitles:
                 output_srt = job_dir / f'clip_{idx:03d}.srt'
                 if per_clip_whisper:
-                    audio_path = work_dir / f'clip_{idx:03d}.wav'
-                    extract_audio(clip_path, audio_path)
                     count = transcribe_to_srt_from_words(
-                        audio_path,
+                        clip_path,
                         output_srt,
                         language=job.auto_caption_lang,
                         model_size=job.whisper_model,
@@ -319,7 +315,7 @@ def process_job(job_id):
 
 @shared_task
 def produce_word_tokens(job_id):
-    """Generate per-word timestamps from per-clip audio using ASR.
+    """Generate per-word timestamps from per-clip media using ASR.
 
     Uses transcribe_to_word_tokens which attempts stable-ts or falls back to
     faster-whisper with approximate word timing.
@@ -331,18 +327,14 @@ def produce_word_tokens(job_id):
     produced = 0
     for clip_idx, clip_path in iter_output_clips(job_dir):
         clip_key = f'clip_{clip_idx:03d}'
-        audio_path = job_dir / f'{clip_key}_words_temp.wav'
         try:
-            extract_audio(clip_path, audio_path)
             words = transcribe_to_word_tokens(
-                audio_path,
+                clip_path,
                 language=job.auto_caption_lang or 'id',
                 model_size=job.whisper_model or 'tiny'
             )
         except Exception:
-            audio_path.unlink(missing_ok=True)
             continue
-        audio_path.unlink(missing_ok=True)
 
         # Round and write to JSON
         words_rounded = [

@@ -23,6 +23,35 @@ import json
 from pathlib import Path
 from django.conf import settings
 
+ACTIVE_JOB_LIMIT = 3
+ACTIVE_JOB_STATUSES = ['queued', 'running']
+
+
+def _active_job_limit_response():
+    active_qs = Job.objects.filter(status__in=ACTIVE_JOB_STATUSES).order_by('created_at')
+    active_count = active_qs.count()
+    if active_count < ACTIVE_JOB_LIMIT:
+        return None
+    active_job_details = [
+        {
+            'id': str(job.id),
+            'status': job.status,
+            'progress': int(job.progress or 0),
+            'message': job.message,
+            'created_at': job.created_at,
+        }
+        for job in active_qs[:ACTIVE_JOB_LIMIT]
+    ]
+    return Response(
+        {
+            'detail': f'Maksimal {ACTIVE_JOB_LIMIT} job aktif. Tunggu salah satu job selesai dulu.',
+            'active_jobs': active_count,
+            'max_active_jobs': ACTIVE_JOB_LIMIT,
+            'active_job_details': active_job_details,
+        },
+        status=status.HTTP_429_TOO_MANY_REQUESTS
+    )
+
 
 class VideoViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
@@ -106,6 +135,9 @@ class JobCreateView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        limit_response = _active_job_limit_response()
+        if limit_response:
+            return limit_response
         serializer = JobCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         job = serializer.save(status='queued', progress=0, message='Job queued', source_type='youtube')
@@ -127,6 +159,9 @@ class LocalJobUploadView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
+        limit_response = _active_job_limit_response()
+        if limit_response:
+            return limit_response
         serializer = LocalJobUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
