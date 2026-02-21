@@ -79,7 +79,7 @@ class Job(models.Model):
     burn_subtitles = models.BooleanField(default=False)
     auto_captions = models.BooleanField(default=False)
     auto_caption_lang = models.CharField(max_length=10, default='id')
-    whisper_model = models.CharField(max_length=10, default='tiny')
+    whisper_model = models.CharField(max_length=10, default='small')
     subtitle_font = models.CharField(max_length=100, default='Arial')
     subtitle_size = models.IntegerField(default=28)
     burn_word_level = models.BooleanField(default=False, help_text="Burn word-level precision subtitles (per-word ASR)")
