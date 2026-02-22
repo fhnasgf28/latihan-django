@@ -453,6 +453,8 @@ const polling = ref(null)
 const progressPoints = ref([])
 const activeLimitJobs = ref([])
 const activeJobsPolling = ref(null)
+const etaNowMs = ref(Date.now())
+const etaTicker = ref(null)
 
 const zipUrl = computed(() => (jobId.value ? jobAPI.downloadZipUrl(jobId.value) : '#'))
 
@@ -491,9 +493,8 @@ const etaText = computed(() => {
   if (!job.value) return '-'
   if (job.value.status === 'done') return 'Selesai'
   if (job.value.status === 'failed') return '-'
-  const estimate = estimateEtaSeconds()
+  const estimate = liveEtaSeconds()
   if (estimate == null || estimate === Infinity) return 'Menghitung...'
-  if (estimate < 10) return '< 10 detik'
   const minutes = Math.floor(estimate / 60)
   const seconds = Math.round(estimate % 60)
   if (minutes > 0) return `${minutes}m ${seconds}s`
@@ -601,15 +602,56 @@ const recordProgress = (progress) => {
 }
 
 const estimateEtaSeconds = () => {
-  if (progressPoints.value.length < 2) return null
-  const first = progressPoints.value[0]
-  const last = progressPoints.value[progressPoints.value.length - 1]
-  const deltaProgress = last.progress - first.progress
-  const deltaTime = (last.time - first.time) / 1000
-  if (deltaProgress <= 0 || deltaTime <= 0) return null
-  const rate = deltaProgress / deltaTime
-  const remaining = Math.max(0, 100 - last.progress)
+  if (progressPoints.value.length >= 2) {
+    const first = progressPoints.value[0]
+    const last = progressPoints.value[progressPoints.value.length - 1]
+    const deltaProgress = last.progress - first.progress
+    const deltaTime = (last.time - first.time) / 1000
+    if (deltaProgress > 0 && deltaTime > 0) {
+      const rate = deltaProgress / deltaTime
+      const remaining = Math.max(0, 100 - last.progress)
+      return remaining / rate
+    }
+  }
+
+  // Fallback: estimate from total progress vs elapsed time since job started.
+  const progressNow = Number(job.value?.progress)
+  const createdAt = currentJob.value?.created_at || job.value?.created_at
+  if (!Number.isFinite(progressNow) || progressNow <= 0 || progressNow >= 100 || !createdAt) {
+    return null
+  }
+  const startMs = new Date(createdAt).getTime()
+  if (!Number.isFinite(startMs) || startMs <= 0) return null
+  const elapsed = (Date.now() - startMs) / 1000
+  if (elapsed <= 1) return null
+  const rate = progressNow / elapsed
+  if (rate <= 0) return null
+  const remaining = Math.max(0, 100 - progressNow)
   return remaining / rate
+}
+
+const liveEtaSeconds = () => {
+  const estimate = estimateEtaSeconds()
+  if (estimate == null || estimate === Infinity) return estimate
+  const last = progressPoints.value[progressPoints.value.length - 1]
+  if (!last) return estimate
+  const elapsed = (etaNowMs.value - last.time) / 1000
+  return Math.max(0, estimate - elapsed)
+}
+
+const startEtaTicker = () => {
+  stopEtaTicker()
+  etaNowMs.value = Date.now()
+  etaTicker.value = setInterval(() => {
+    etaNowMs.value = Date.now()
+  }, 1000)
+}
+
+const stopEtaTicker = () => {
+  if (etaTicker.value) {
+    clearInterval(etaTicker.value)
+    etaTicker.value = null
+  }
 }
 
 const startActiveJobsPolling = () => {
@@ -710,6 +752,7 @@ const submitJob = async () => {
     jobStorage.saveJob(currentJob.value)
     
     resetProgress()
+    recordProgress(0)
     startPolling()
     console.log('🔄 [VideoClipper] Started polling for new job')
   } catch (err) {
@@ -779,6 +822,7 @@ const checkJobStatus = async () => {
       created_at: currentJob.value.created_at || response.data.created_at
     }
     job.value = response.data
+    recordProgress(response.data.progress)
     
     jobStorage.saveJob(currentJob.value)
     console.log('💾 [VideoClipper] Job state updated and saved')
@@ -833,6 +877,7 @@ const cancelJob = async () => {
 
 const startPolling = () => {
   stopPolling()
+  startEtaTicker()
   checkJobStatus()
   pollingInterval.value = setInterval(checkJobStatus, 2000)
 }
@@ -846,6 +891,7 @@ const stopPolling = () => {
     clearInterval(pollingInterval.value)
     pollingInterval.value = null
   }
+  stopEtaTicker()
 }
 
 onMounted(async () => {
@@ -917,5 +963,6 @@ watch(
 onBeforeUnmount(() => {
   stopPolling()
   stopActiveJobsPolling()
+  stopEtaTicker()
 })
 </script>
