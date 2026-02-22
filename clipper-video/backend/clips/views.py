@@ -270,13 +270,28 @@ class JobZipView(APIView):
         if not job_dir.exists():
             raise Http404('Job outputs not found')
 
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
-        with zipfile.ZipFile(temp_file.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for path in job_dir.iterdir():
-                if path.is_file():
-                    zipf.write(path, arcname=path.name)
-        temp_file.seek(0)
-        response = FileResponse(open(temp_file.name, 'rb'), as_attachment=True, filename=f'job_{job.id}.zip')
+        zip_path = job_dir / f'job_{job.id}.zip'
+        source_files = [path for path in job_dir.iterdir() if path.is_file() and path.name != zip_path.name]
+        latest_source_mtime = max((path.stat().st_mtime for path in source_files), default=0)
+        zip_is_stale = (not zip_path.exists()) or (zip_path.stat().st_mtime < latest_source_mtime)
+
+        if zip_is_stale:
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+            temp_zip_path = Path(temp_file.name)
+            temp_file.close()
+            try:
+                with zipfile.ZipFile(temp_zip_path, 'w') as zipf:
+                    for path in source_files:
+                        # Video/audio sudah terkompres, jadi simpan tanpa kompresi ulang agar respons cepat.
+                        suffix = path.suffix.lower()
+                        compression = zipfile.ZIP_STORED if suffix in {'.mp4', '.mov', '.m4a', '.webm', '.mkv'} else zipfile.ZIP_DEFLATED
+                        zipf.write(path, arcname=path.name, compress_type=compression)
+                temp_zip_path.replace(zip_path)
+            finally:
+                if temp_zip_path.exists():
+                    temp_zip_path.unlink(missing_ok=True)
+
+        response = FileResponse(open(zip_path, 'rb'), as_attachment=True, filename=f'job_{job.id}.zip')
         return response
 
 class JobViewSet(viewsets.ModelViewSet):

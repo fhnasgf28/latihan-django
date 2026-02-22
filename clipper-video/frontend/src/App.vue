@@ -8,10 +8,6 @@
             <h1 class="mt-4 text-3xl font-semibold text-white md:text-5xl">
               Clip cepat, subtitle rapi, semua lokal.
             </h1>
-            <p class="mt-4 text-base text-slate-200">
-              Masukkan URL YouTube, tentukan mode, dan biarkan worker mengerjakan semuanya,
-              <span class="text-orange-300"> lakukan aktivitas yang lain, sementara job sedang berjalan.</span>
-            </p>
           </div>
           <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-6 text-sm text-slate-200">
             <div class="flex items-center gap-2 text-sky-200">
@@ -20,11 +16,10 @@
               <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
             </div>
             <p class="mt-4 text-lg font-semibold text-white">Workflow ringkas</p>
-            <ul class="mt-3 space-y-2">
-              <li>Prefer 1080p, fallback 720p/480p</li>
-              <li>Auto-split atau manual ranges</li>
-              <li>Burn subtitle hanya jika perlu</li>
-            </ul>
+            <p class="mt-4 text-base text-slate-200">
+              Masukkan URL YouTube, tentukan mode, dan biarkan worker mengerjakan semuanya,
+              <span class="text-orange-300"> lakukan aktivitas yang lain, sementara job sedang berjalan.</span>
+            </p>
           </div>
         </div>
       </div>

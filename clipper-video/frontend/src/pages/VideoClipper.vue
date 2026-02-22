@@ -52,20 +52,38 @@
             </button>
           </div>
           <div class="mt-3 space-y-3">
-            <div v-for="(range, index) in form.ranges" :key="index" class="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2">
-              <input v-model.trim="range.start" type="text" placeholder="00:00:00" class="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white" />
-              <span class="text-xs text-slate-400">to</span>
-              <input v-model.trim="range.end" type="text" placeholder="00:00:30" class="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white" />
-              <button
-                v-if="form.ranges.length > 1"
-                type="button"
-                class="text-xs text-rose-300"
-                @click="removeRange(index)"
-              >
-                Hapus
-              </button>
+            <div v-for="(range, index) in form.ranges" :key="index" class="space-y-2">
+              <div class="grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-center">
+                <input
+                  v-model.trim="range.start"
+                  type="text"
+                  placeholder="Mulai (00:00:00)"
+                  class="rounded-xl border bg-slate-900/70 px-3 py-2 text-sm text-white"
+                  :class="getRangeError(range) ? 'border-rose-300/70' : 'border-white/10'"
+                />
+                <span class="hidden text-xs text-slate-400 sm:block">to</span>
+                <input
+                  v-model.trim="range.end"
+                  type="text"
+                  placeholder="Selesai (00:00:30)"
+                  class="rounded-xl border bg-slate-900/70 px-3 py-2 text-sm text-white"
+                  :class="getRangeError(range) ? 'border-rose-300/70' : 'border-white/10'"
+                />
+                <button
+                  v-if="form.ranges.length > 1"
+                  type="button"
+                  class="justify-self-start text-xs text-rose-300 sm:justify-self-auto"
+                  @click="removeRange(index)"
+                >
+                  Hapus
+                </button>
+              </div>
+              <p v-if="getRangeError(range)" class="text-xs font-semibold text-rose-300">
+                {{ getRangeError(range) }}
+              </p>
             </div>
           </div>
+          <p class="mt-2 text-xs text-slate-400">Format wajib HH:MM:SS, dan waktu selesai harus lebih besar dari mulai.</p>
         </div>
 
         <div>
@@ -200,9 +218,28 @@
               </select>
             </div>
           </div>
-          <div class="mt-3 grid gap-3 md:grid-cols-2" :class="!form.burn_subtitles ? 'opacity-50' : ''">
+        </div>
+        <div class="mt-3 space-y-3" :class="!form.burn_subtitles ? 'opacity-50' : ''">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-400">Style subtitle (font + ukuran)</span>
+            <label class="inline-flex cursor-pointer items-center gap-2">
+              <input
+                v-model="form.subtitle_style_enabled"
+                :disabled="!form.burn_subtitles"
+                type="checkbox"
+                class="peer sr-only"
+              />
+              <span class="relative h-6 w-11 rounded-full bg-slate-700/90 transition-colors duration-200 peer-checked:bg-emerald-400 peer-checked:shadow-[0_0_14px_rgba(74,222,128,0.75)]">
+                <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5"></span>
+              </span>
+              <span class="text-xs font-semibold" :class="form.subtitle_style_enabled ? 'text-emerald-300' : 'text-slate-400'">
+                {{ form.subtitle_style_enabled ? 'ON' : 'OFF' }}
+              </span>
+            </label>
+          </div>
+          <div v-if="form.subtitle_style_enabled" class="grid gap-3 md:grid-cols-2">
             <div>
-              <span class="text-xs text-slate-400">Font</span>
+              <span class="text-xs text-slate-400">Font subtitle</span>
               <select
                 v-model="form.subtitle_font"
                 :disabled="!form.burn_subtitles"
@@ -216,12 +253,12 @@
               </select>
             </div>
             <div>
-              <span class="text-xs text-slate-400">Font size</span>
+              <span class="text-xs text-slate-400">Ukuran subtitle</span>
               <input
                 v-model.number="form.subtitle_size"
                 :disabled="!form.burn_subtitles"
                 type="number"
-                min="14"
+                min="10"
                 max="72"
                 class="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
               />
@@ -233,7 +270,7 @@
           class="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
           type="button"
           @click="submitJob"
-          :disabled="loading || isMaxClipsInvalid"
+          :disabled="loading || isMaxClipsInvalid || hasRangeValidationError"
         >
           {{ loading ? 'Mengirim...' : 'Jalankan Job' }}
         </button>
@@ -342,8 +379,9 @@ const form = ref({
   subtitle_primary: 'id',
   subtitle_fallback_enabled: false,
   subtitle_fallback: 'en',
+  subtitle_style_enabled: false,
   subtitle_font: 'Arial',
-  subtitle_size: 28
+  subtitle_size: 10
 })
 
 const jobId = ref('')
@@ -416,12 +454,36 @@ const removeRange = (index) => {
   form.value.ranges.splice(index, 1)
 }
 
+const parseHmsToSeconds = (value) => {
+  const text = String(value || '').trim()
+  const match = text.match(/^(\d{1,2}):([0-5]\d):([0-5]\d)$/)
+  if (!match) return null
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  const seconds = Number(match[3])
+  return (hours * 3600) + (minutes * 60) + seconds
+}
+
+const getRangeError = (range) => {
+  const startSeconds = parseHmsToSeconds(range.start)
+  const endSeconds = parseHmsToSeconds(range.end)
+  if (startSeconds == null || endSeconds == null) {
+    return 'Format waktu tidak valid. Gunakan HH:MM:SS.'
+  }
+  if (endSeconds <= startSeconds) {
+    return 'Waktu selesai harus lebih besar dari waktu mulai.'
+  }
+  return ''
+}
+
 const normalizeSubtitleFont = () => {
+  if (!form.value.subtitle_style_enabled) return 'Arial'
   const value = String(form.value.subtitle_font || '').trim()
   return value || 'Arial'
 }
 
 const normalizeSubtitleSize = () => {
+  if (!form.value.subtitle_style_enabled) return 28
   const parsed = Number(form.value.subtitle_size)
   if (!Number.isFinite(parsed)) return 28
   return Math.min(72, Math.max(14, Math.round(parsed)))
@@ -431,6 +493,11 @@ const isMaxClipsInvalid = computed(() => {
   const parsed = Number(form.value.max_clips)
   if (!Number.isFinite(parsed)) return true
   return parsed < 1 || parsed > 10
+})
+
+const hasRangeValidationError = computed(() => {
+  if (form.value.mode !== 'manual') return false
+  return form.value.ranges.some((range) => Boolean(getRangeError(range)))
 })
 
 const buildPayload = () => ({
@@ -522,6 +589,10 @@ const submitJob = async () => {
   error.value = ''
   if (isMaxClipsInvalid.value) {
     error.value = 'Maksimum clip harus di antara 1 sampai 10.'
+    return
+  }
+  if (hasRangeValidationError.value) {
+    error.value = 'Periksa range: format harus HH:MM:SS dan waktu selesai harus lebih besar dari mulai.'
     return
   }
   if (form.value.source === 'youtube') {

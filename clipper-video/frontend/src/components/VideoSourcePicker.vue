@@ -20,7 +20,7 @@
         :class="modelValue.source === 'local' ? 'bg-white text-slate-900' : 'text-slate-300'"
         @click="setSource('local')"
       >
-        File Komputer
+        File Perangkat
       </button>
     </div>
 
