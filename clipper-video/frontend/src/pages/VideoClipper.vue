@@ -4,7 +4,6 @@
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="text-2xl font-semibold text-white">Mulai Job</h2>
-          <p class="mt-2 text-sm text-slate-300">Lebih cepat dengan opsi burn subtitle yang bisa dimatikan.</p>
         </div>
         <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs text-emerald-200">Local</span>
       </div>
