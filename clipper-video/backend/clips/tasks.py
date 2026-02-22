@@ -195,7 +195,7 @@ def process_job(job_id):
 
         subtitle_file = None
         per_clip_whisper = False
-        wants_subtitles = job.burn_subtitles or job.auto_captions
+        wants_subtitles = job.burn_subtitles or job.auto_captions or job.generate_srt
         prefer_auto_asr = bool(job.auto_captions)
 
         if wants_subtitles and job.source_type == 'youtube' and not prefer_auto_asr:
@@ -228,8 +228,8 @@ def process_job(job_id):
                 )
                 ensure_not_canceled(job)
                 subtitle_file = full_srt
-        elif job.burn_subtitles and not subtitle_file:
-            update_job(job, message='Burn subtitles aktif tapi subtitle tidak tersedia; hasil tanpa caption')
+        elif (job.burn_subtitles or job.generate_srt) and not subtitle_file:
+            update_job(job, message='Subtitle/SRT diminta tapi subtitle sumber tidak tersedia')
 
         total = len(ranges)
         for idx, (start, end) in enumerate(ranges, start=1):

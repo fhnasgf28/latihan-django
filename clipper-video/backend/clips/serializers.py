@@ -66,6 +66,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
             'min_height_fallback',
             'subtitle_langs',
             'burn_subtitles',
+            'generate_srt',
             'auto_captions',
             'auto_caption_lang',
             'whisper_model',
@@ -97,6 +98,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
         min_height_fallback = data.get('min_height_fallback', 720)
         subtitle_langs = data.get('subtitle_langs', ['id', 'en'])
         burn_subtitles = data.get('burn_subtitles', False)
+        generate_srt = data.get('generate_srt', False)
         auto_captions = data.get('auto_captions', False)
         auto_caption_lang = data.get('auto_caption_lang', 'id')
         whisper_model = data.get('whisper_model', 'small')
@@ -151,7 +153,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
             # download-sections + burn subtitles bisa lebih lambat untuk banyak clip
             pass
 
-        if (burn_subtitles or auto_captions) and not subtitle_langs:
+        if (burn_subtitles or auto_captions or generate_srt) and not subtitle_langs:
             data['subtitle_langs'] = ['id', 'en']
 
         if auto_captions and auto_caption_lang not in ['id', 'en']:
@@ -181,7 +183,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        if validated_data.get('burn_subtitles') or validated_data.get('auto_captions'):
+        if validated_data.get('burn_subtitles') or validated_data.get('auto_captions') or validated_data.get('generate_srt'):
             if 'subtitle_langs' not in validated_data or not validated_data['subtitle_langs']:
                 validated_data['subtitle_langs'] = ['id', 'en']
         if 'min_height_fallback' not in validated_data:
@@ -192,6 +194,8 @@ class JobCreateSerializer(serializers.ModelSerializer):
             validated_data['download_sections'] = False
         if 'auto_captions' not in validated_data:
             validated_data['auto_captions'] = False
+        if 'generate_srt' not in validated_data:
+            validated_data['generate_srt'] = False
         if 'auto_caption_lang' not in validated_data:
             validated_data['auto_caption_lang'] = 'id'
         if 'whisper_model' not in validated_data:
@@ -255,6 +259,7 @@ class LocalJobUploadSerializer(serializers.Serializer):
 
     subtitle_langs = serializers.JSONField(required=False, default=list)
     burn_subtitles = serializers.BooleanField(required=False, default=False)
+    generate_srt = serializers.BooleanField(required=False, default=False)
 
     auto_captions = serializers.BooleanField(required=False, default=False)
     auto_caption_lang = serializers.ChoiceField(choices=['id', 'en'], required=False, default='id')

@@ -77,6 +77,7 @@ class Job(models.Model):
     min_height_fallback = models.IntegerField(default=720)
     subtitle_langs = models.JSONField(default=list)
     burn_subtitles = models.BooleanField(default=False)
+    generate_srt = models.BooleanField(default=False)
     auto_captions = models.BooleanField(default=False)
     auto_caption_lang = models.CharField(max_length=10, default='id')
     whisper_model = models.CharField(max_length=10, default='small')

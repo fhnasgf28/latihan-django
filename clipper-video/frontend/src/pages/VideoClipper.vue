@@ -218,30 +218,48 @@
             </div>
           </div>
         </div>
-        <div class="mt-3 space-y-3" :class="!form.burn_subtitles ? 'opacity-50' : ''">
+        <div class="rounded-2xl border border-emerald-300/30 bg-emerald-500/5 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-semibold text-emerald-200">SRT terpisah untuk aplikasi lain(capcut)</p>
+              <p class="text-xs text-emerald-100/80">Saat ON: video tanpa caption, tapi file .srt tetap dibuat.</p>
+            </div>
+            <label class="inline-flex cursor-pointer items-center gap-2">
+              <input
+                v-model="form.generate_srt"
+                type="checkbox"
+                class="peer sr-only"
+              />
+              <span class="relative h-6 w-11 rounded-full bg-slate-700/90 transition-colors duration-200 peer-checked:bg-emerald-400 peer-checked:shadow-[0_0_16px_rgba(74,222,128,0.85)] after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-200 after:content-[''] peer-checked:after:translate-x-5"></span>
+              <span class="text-xs font-semibold" :class="form.generate_srt ? 'text-emerald-300' : 'text-slate-400'">
+                {{ form.generate_srt ? 'ON' : 'OFF' }}
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="mt-3 space-y-3" :class="!burnSubtitlesEnabled ? 'opacity-50' : ''">
           <div class="flex items-center justify-between">
             <span class="text-xs text-slate-400">Style subtitle (font + ukuran)</span>
             <label class="inline-flex cursor-pointer items-center gap-2">
               <input
                 v-model="form.subtitle_style_enabled"
-                :disabled="!form.burn_subtitles"
+                :disabled="!burnSubtitlesEnabled"
                 type="checkbox"
                 class="peer sr-only"
               />
-              <span class="relative h-6 w-11 rounded-full bg-slate-700/90 transition-colors duration-200 peer-checked:bg-emerald-400 peer-checked:shadow-[0_0_14px_rgba(74,222,128,0.75)]">
-                <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5"></span>
-              </span>
+              <span class="relative h-6 w-11 rounded-full bg-slate-700/90 transition-colors duration-200 peer-checked:bg-emerald-400 peer-checked:shadow-[0_0_14px_rgba(74,222,128,0.75)] after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-200 after:content-[''] peer-checked:after:translate-x-5"></span>
               <span class="text-xs font-semibold" :class="form.subtitle_style_enabled ? 'text-emerald-300' : 'text-slate-400'">
                 {{ form.subtitle_style_enabled ? 'ON' : 'OFF' }}
               </span>
             </label>
           </div>
-          <div v-if="form.subtitle_style_enabled" class="grid gap-3 md:grid-cols-2">
+          <div v-if="form.subtitle_style_enabled && burnSubtitlesEnabled" class="grid gap-3 md:grid-cols-2">
             <div>
               <span class="text-xs text-slate-400">Font subtitle</span>
               <select
                 v-model="form.subtitle_font"
-                :disabled="!form.burn_subtitles"
+                :disabled="!burnSubtitlesEnabled"
                 class="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
               >
                 <option value="Arial">Arial</option>
@@ -255,7 +273,7 @@
               <span class="text-xs text-slate-400">Ukuran subtitle</span>
               <input
                 v-model.number="form.subtitle_size"
-                :disabled="!form.burn_subtitles"
+                :disabled="!burnSubtitlesEnabled"
                 type="number"
                 min="10"
                 max="72"
@@ -353,6 +371,7 @@ import { jobStorage } from "@/services/jobStorage";
 import VideoSourcePicker from '@/components/VideoSourcePicker.vue'
 
 const FORM_YOUTUBE_URL_STORAGE_KEY = 'clipper_last_youtube_url'
+const FORM_STATE_STORAGE_KEY = 'clipper_form_state_v1'
 
 // Job persistence
 const currentJob = ref(null)
@@ -372,6 +391,7 @@ const form = ref({
   strict_1080: true,
   min_height_fallback: 720,
   burn_subtitles: true,
+  generate_srt: true,
   auto_captions: true,
   auto_caption_lang: 'id',
   whisper_model: 'small',
@@ -382,6 +402,48 @@ const form = ref({
   subtitle_font: 'Arial',
   subtitle_size: 10
 })
+
+const restorePersistedFormState = (state) => {
+  if (!state || typeof state !== 'object') return
+  const simpleFields = [
+    'source',
+    'youtube_url',
+    'local_name',
+    'mode',
+    'interval_minutes',
+    'max_clips',
+    'download_sections',
+    'orientation',
+    'strict_1080',
+    'min_height_fallback',
+    'burn_subtitles',
+    'generate_srt',
+    'auto_captions',
+    'auto_caption_lang',
+    'whisper_model',
+    'subtitle_primary',
+    'subtitle_fallback_enabled',
+    'subtitle_fallback',
+    'subtitle_style_enabled',
+    'subtitle_font',
+    'subtitle_size',
+  ]
+
+  for (const key of simpleFields) {
+    if (Object.prototype.hasOwnProperty.call(state, key)) {
+      form.value[key] = state[key]
+    }
+  }
+
+  if (Array.isArray(state.ranges) && state.ranges.length > 0) {
+    const validRanges = state.ranges
+      .filter((item) => item && typeof item.start === 'string' && typeof item.end === 'string')
+      .map((item) => ({ start: item.start, end: item.end }))
+    if (validRanges.length > 0) {
+      form.value.ranges = validRanges
+    }
+  }
+}
 
 const jobId = ref('')
 const job = ref(null)
@@ -403,6 +465,8 @@ const subtitleLangs = computed(() => {
   }
   return langs
 })
+
+const burnSubtitlesEnabled = computed(() => form.value.burn_subtitles && !form.value.generate_srt)
 
 const statusClass = computed(() => {
   if (!job.value) return 'bg-slate-800 text-slate-300'
@@ -476,15 +540,15 @@ const getRangeError = (range) => {
 }
 
 const normalizeSubtitleFont = () => {
-  if (!form.value.subtitle_style_enabled) return 'Arial'
+  if (!form.value.subtitle_style_enabled || !burnSubtitlesEnabled.value) return 'Arial'
   const value = String(form.value.subtitle_font || '').trim()
   return value || 'Arial'
 }
 
 const normalizeSubtitleSize = () => {
-  if (!form.value.subtitle_style_enabled) return 28
+  if (!form.value.subtitle_style_enabled || !burnSubtitlesEnabled.value) return 28
   const parsed = Number(form.value.subtitle_size)
-  if (!Number.isFinite(parsed)) return 28
+  if (!Number.isFinite(parsed)) return 20
   return Math.min(72, Math.max(14, Math.round(parsed)))
 }
 
@@ -509,13 +573,14 @@ const buildPayload = () => ({
   orientation: form.value.orientation,
   strict_1080: form.value.strict_1080,
   min_height_fallback: form.value.strict_1080 ? 720 : form.value.min_height_fallback,
-  burn_subtitles: form.value.burn_subtitles,
+  burn_subtitles: burnSubtitlesEnabled.value,
+  generate_srt: form.value.generate_srt,
   auto_captions: form.value.auto_captions,
   auto_caption_lang: form.value.auto_caption_lang,
   whisper_model: form.value.whisper_model,
   subtitle_font: normalizeSubtitleFont(),
   subtitle_size: normalizeSubtitleSize(),
-  subtitle_langs: (form.value.burn_subtitles || form.value.auto_captions) ? subtitleLangs.value : []
+  subtitle_langs: (burnSubtitlesEnabled.value || form.value.auto_captions || form.value.generate_srt) ? subtitleLangs.value : []
 })
 
 const resetProgress = () => {
@@ -719,9 +784,13 @@ const checkJobStatus = async () => {
     console.log('💾 [VideoClipper] Job state updated and saved')
     
     if (['done', 'failed', 'canceled'].includes(currentJob.value.status)) {
-      console.log('🎉 [VideoClipper] Job completed, stopping polling')
+      console.log('🎉 [VideoClipper] Job reached terminal state, stopping polling')
       stopPolling()
-      jobStorage.clearJob()
+      // Keep successful job in localStorage so user can refresh and still download outputs.
+      // Failed/canceled jobs are still cleared to avoid restoring stale error states.
+      if (currentJob.value.status !== 'done') {
+        jobStorage.clearJob()
+      }
     }
   } catch (error) {
     console.error('❌ [VideoClipper] Error checking job status:', error)
@@ -780,8 +849,18 @@ const stopPolling = () => {
 }
 
 onMounted(async () => {
+  const savedFormState = sessionStorage.getItem(FORM_STATE_STORAGE_KEY)
+  if (savedFormState) {
+    try {
+      restorePersistedFormState(JSON.parse(savedFormState))
+    } catch (_) {
+      sessionStorage.removeItem(FORM_STATE_STORAGE_KEY)
+    }
+  }
+
+  // Backward compatibility for old storage key.
   const savedYoutubeUrl = sessionStorage.getItem(FORM_YOUTUBE_URL_STORAGE_KEY)
-  if (savedYoutubeUrl) {
+  if (savedYoutubeUrl && !form.value.youtube_url) {
     form.value.youtube_url = savedYoutubeUrl
   }
 
@@ -803,10 +882,36 @@ onMounted(async () => {
 })
 
 watch(
-  () => form.value.youtube_url,
-  (url) => {
-    sessionStorage.setItem(FORM_YOUTUBE_URL_STORAGE_KEY, url || '')
-  }
+  form,
+  (currentForm) => {
+    sessionStorage.setItem(FORM_YOUTUBE_URL_STORAGE_KEY, currentForm.youtube_url || '')
+    const persistable = {
+      source: currentForm.source,
+      youtube_url: currentForm.youtube_url || '',
+      local_name: currentForm.local_name || '',
+      mode: currentForm.mode,
+      interval_minutes: currentForm.interval_minutes,
+      ranges: currentForm.ranges,
+      max_clips: currentForm.max_clips,
+      download_sections: currentForm.download_sections,
+      orientation: currentForm.orientation,
+      strict_1080: currentForm.strict_1080,
+      min_height_fallback: currentForm.min_height_fallback,
+      burn_subtitles: currentForm.burn_subtitles,
+      generate_srt: currentForm.generate_srt,
+      auto_captions: currentForm.auto_captions,
+      auto_caption_lang: currentForm.auto_caption_lang,
+      whisper_model: currentForm.whisper_model,
+      subtitle_primary: currentForm.subtitle_primary,
+      subtitle_fallback_enabled: currentForm.subtitle_fallback_enabled,
+      subtitle_fallback: currentForm.subtitle_fallback,
+      subtitle_style_enabled: currentForm.subtitle_style_enabled,
+      subtitle_font: currentForm.subtitle_font,
+      subtitle_size: currentForm.subtitle_size,
+    }
+    sessionStorage.setItem(FORM_STATE_STORAGE_KEY, JSON.stringify(persistable))
+  },
+  { deep: true }
 )
 
 onBeforeUnmount(() => {

@@ -177,6 +177,7 @@ class LocalJobUploadView(APIView):
             min_height_fallback=serializer.validated_data.get('min_height_fallback', 720),
             subtitle_langs=serializer.validated_data.get('subtitle_langs') or ['id', 'en'],
             burn_subtitles=serializer.validated_data.get('burn_subtitles', False),
+            generate_srt=serializer.validated_data.get('generate_srt', False),
             auto_captions=serializer.validated_data.get('auto_captions', False),
             auto_caption_lang=serializer.validated_data.get('auto_caption_lang', 'id'),
             whisper_model=serializer.validated_data.get('whisper_model', 'tiny'),
