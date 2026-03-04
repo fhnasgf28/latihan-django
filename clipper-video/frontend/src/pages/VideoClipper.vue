@@ -366,7 +366,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { jobAPI } from '@/services/api'
+import { jobAPI, resolveBackendUrl } from '@/services/api'
 import { jobStorage } from "@/services/jobStorage";
 import VideoSourcePicker from '@/components/VideoSourcePicker.vue'
 
@@ -502,12 +502,7 @@ const etaText = computed(() => {
 })
 
 const resolveUrl = (url) => {
-  if (!url) return '#'
-  if (url.startsWith('http')) return url
-  // Jika URL sudah relatif (misal /media/...), biarkan saja.
-  // Browser akan otomatis menambahkan host saat ini (misal 100.x.x.x:5173)
-  // yang kemudian akan di-proxy ke backend.
-  return url
+  return resolveBackendUrl(url)
 }
 
 const addRange = () => {

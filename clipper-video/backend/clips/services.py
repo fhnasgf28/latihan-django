@@ -3,12 +3,26 @@ import os
 import shutil
 import sys
 import importlib.util
+import base64
+import gzip
+import tempfile
+import atexit
+import shlex
+import re
 from pathlib import Path
 
 from .utils import run_command, run_command_stream, escape_ffmpeg_path, format_timecode
 from .reframe import compute_dominant_person_crop
 from .srt_utils import render_ass_from_words
 from tempfile import NamedTemporaryFile
+
+_TEMP_COOKIE_FILE = None
+
+
+def _is_truthy(value):
+    if value is None:
+        return False
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
 def _get_yt_dlp_cmd():
@@ -28,32 +42,167 @@ def _get_yt_dlp_cmd():
     return [sys.executable, '-m', 'yt_dlp']
 
 
+def _get_cookie_file_path():
+    # Prefer mounted file path (e.g. Cloud Run secret volume/env path).
+    cookie_file = os.getenv('YTDLP_COOKIES_FILE')
+    if cookie_file and Path(cookie_file).exists():
+        return cookie_file
+
+    global _TEMP_COOKIE_FILE
+    if _TEMP_COOKIE_FILE:
+        return _TEMP_COOKIE_FILE
+
+    # Alternative: pass cookie content via env.
+    raw = os.getenv('YTDLP_COOKIES_CONTENT')
+    raw_b64 = os.getenv('YTDLP_COOKIES_B64')
+    raw_b64_gzip = os.getenv('YTDLP_COOKIES_B64_GZIP')
+    if not raw and raw_b64_gzip:
+        try:
+            raw = gzip.decompress(base64.b64decode(raw_b64_gzip)).decode('utf-8')
+        except Exception:
+            raw = None
+    if not raw and raw_b64:
+        try:
+            raw = base64.b64decode(raw_b64).decode('utf-8')
+        except Exception:
+            raw = None
+
+    if not raw:
+        return None
+
+    fd, path = tempfile.mkstemp(prefix='ytdlp_cookies_', suffix='.txt')
+    with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+        handle.write(raw)
+    os.chmod(path, 0o600)
+    _TEMP_COOKIE_FILE = path
+
+    def _cleanup():
+        try:
+            Path(path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    atexit.register(_cleanup)
+    return _TEMP_COOKIE_FILE
+
+
+def _read_cookie_value(cookie_path, cookie_name):
+    if not cookie_path:
+        return ''
+    path = Path(cookie_path)
+    if not path.exists():
+        return ''
+    try:
+        for line in path.read_text(encoding='utf-8', errors='ignore').splitlines():
+            if not line or line.startswith('#'):
+                continue
+            parts = line.split('\t')
+            if len(parts) >= 7 and parts[5] == cookie_name:
+                return parts[6].strip()
+    except Exception:
+        return ''
+    return ''
+
+
+def _split_extractor_args(raw_value):
+    if not raw_value:
+        return []
+    # Support newline or "||" separated values in env.
+    chunks = re.split(r'\n|\|\|', raw_value)
+    return [item.strip() for item in chunks if item and item.strip()]
+
+
+def _build_extractor_args(cookies_path):
+    extractor_args = []
+
+    manual_args = _split_extractor_args(os.getenv('YTDLP_EXTRACTOR_ARGS', ''))
+    manual_args.extend(_split_extractor_args(os.getenv('YTDLP_EXTRACTOR_ARGS_LIST', '')))
+    if manual_args:
+        extractor_args.extend(manual_args)
+
+    po_token = os.getenv('YTDLP_PO_TOKEN', '').strip()
+    if po_token:
+        player_clients = os.getenv('YTDLP_PO_TOKEN_PLAYER_CLIENTS', 'web,default').strip()
+        po_token_expr = po_token if '+' in po_token else f'web+{po_token}'
+        po_arg = f'youtube:player_client={player_clients};po_token={po_token_expr}'
+
+        visitor_data = os.getenv('YTDLP_VISITOR_DATA', '').strip()
+        if not visitor_data and _is_truthy(os.getenv('YTDLP_AUTO_VISITOR_DATA')):
+            visitor_data = _read_cookie_value(cookies_path, 'VISITOR_INFO1_LIVE')
+        if visitor_data and _is_truthy(os.getenv('YTDLP_INCLUDE_VISITOR_WITH_PO', '1')):
+            po_arg = f'{po_arg};visitor_data={visitor_data}'
+
+        extractor_args.append(po_arg)
+    elif _is_truthy(os.getenv('YTDLP_FORCE_VISITOR_DATA')):
+        visitor_data = os.getenv('YTDLP_VISITOR_DATA', '').strip()
+        if not visitor_data:
+            visitor_data = _read_cookie_value(cookies_path, 'VISITOR_INFO1_LIVE')
+        if visitor_data:
+            # This mode is intentionally opt-in; yt-dlp docs warn it is less stable.
+            extractor_args.extend([
+                'youtubetab:skip=webpage',
+                f'youtube:player_skip=webpage,configs;visitor_data={visitor_data}',
+            ])
+
+    return extractor_args
+
+
+def _yt_dlp_common_args(include_playlist=False):
+    args = []
+    if not include_playlist:
+        args.extend(['--no-playlist'])
+    args.extend([
+        '--no-check-certificate',
+        '--user-agent', os.getenv(
+            'YTDLP_USER_AGENT',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        ),
+    ])
+
+    js_runtimes = os.getenv('YT_DLP_JS_RUNTIMES', 'node').strip()
+    if js_runtimes:
+        args.extend(['--js-runtimes', js_runtimes])
+
+    cookies_path = _get_cookie_file_path()
+    if cookies_path:
+        args.extend(['--cookies', cookies_path])
+
+    for extractor_arg in _build_extractor_args(cookies_path):
+        args.extend(['--extractor-args', extractor_arg])
+
+    extra_args = os.getenv('YTDLP_EXTRA_ARGS', '').strip()
+    if extra_args:
+        args.extend(shlex.split(extra_args))
+    return args
+
+
+def _raise_yt_error(prefix, exc):
+    message = str(exc)
+    if 'Sign in to confirm you’re not a bot' in message or 'Sign in to confirm you\'re not a bot' in message:
+        message += (
+            '\nHint: refresh YouTube cookies from an incognito session and set '
+            'YTDLP_COOKIES_FILE (or YTDLP_COOKIES_B64/YTDLP_COOKIES_CONTENT) before redeploy.'
+        )
+        if not os.getenv('YTDLP_PO_TOKEN', '').strip():
+            message += (
+                '\nHint: if bot-check still appears on Cloud Run/datacenter IPs, set YTDLP_PO_TOKEN '
+                '(see yt-dlp PO Token Guide) and redeploy.'
+            )
+    raise RuntimeError(f'{prefix}: {message}')
+
+
 def fetch_video_info(url):
     yt_dlp_cmd = _get_yt_dlp_cmd()
     try:
-        # Add --no-check-certificate and --user-agent for better compatibility
         output = run_command([
             *yt_dlp_cmd,
-            '-J', 
-            '--no-playlist',
-            '--no-check-certificate',
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            '-J',
+            *_yt_dlp_common_args(),
             url,
         ])
         return json.loads(output)
-    except Exception as e:
-        # Try fallback without user-agent if first attempt fails
-        try:
-            output = run_command([
-                *yt_dlp_cmd,
-                '-J', 
-                '--no-playlist',
-                '--no-check-certificate',
-                url,
-            ])
-            return json.loads(output)
-        except Exception as e2:
-            raise RuntimeError(f'Failed to fetch video info: {str(e2)}')
+    except Exception as exc:
+        _raise_yt_error('Failed to fetch video info', exc)
 
 
 def probe_duration_seconds(video_path):
@@ -103,9 +252,7 @@ def download_video(url, work_dir, selector, on_line=None):
         '--progress',
         '-f', selector,
         '--merge-output-format', 'mp4',
-        '--no-playlist',
-        '--no-check-certificate',
-        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        *_yt_dlp_common_args(),
         '--embed-metadata',
         '--embed-chapters',
         '-o', output_template,
@@ -131,9 +278,7 @@ def download_section(url, work_dir, selector, start, end, index):
         '--download-sections', section,
         '-f', selector,
         '--merge-output-format', 'mp4',
-        '--no-playlist',
-        '--no-check-certificate',
-        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        *_yt_dlp_common_args(),
         '-o', output_template,
         url,
     ])
@@ -159,9 +304,7 @@ def download_subtitles(url, work_dir, langs):
         '--sub-langs', lang_arg,
         '--convert-subs', 'srt',
         '--skip-download',
-        '--no-playlist',
-        '--no-check-certificate',
-        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        *_yt_dlp_common_args(),
         '-o', output_template,
         url,
     ])

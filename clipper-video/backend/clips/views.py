@@ -272,7 +272,10 @@ class JobZipView(APIView):
             raise Http404('Job outputs not found')
 
         zip_path = job_dir / f'job_{job.id}.zip'
-        source_files = [path for path in job_dir.iterdir() if path.is_file() and path.name != zip_path.name]
+        source_files = [
+            path for path in job_dir.iterdir()
+            if path.is_file() and path.name != zip_path.name and path.suffix.lower() != '.json'
+        ]
         latest_source_mtime = max((path.stat().st_mtime for path in source_files), default=0)
         zip_is_stale = (not zip_path.exists()) or (zip_path.stat().st_mtime < latest_source_mtime)
 

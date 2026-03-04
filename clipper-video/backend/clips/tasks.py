@@ -290,9 +290,8 @@ def process_job(job_id):
 
         update_job(job, status='done', progress=100, message='Done')
         try:
-            produce_word_tokens.delay(str(job.id))
-            # Burn word-level subtitles jika enabled
             if job.burn_word_level:
+                produce_word_tokens.delay(str(job.id))
                 burn_clips_with_word_subtitles.delay(str(job.id))
         except Exception:
             pass
@@ -382,6 +381,7 @@ def burn_clips_with_word_subtitles(job_id):
             burned += 1
             clip_path.unlink(missing_ok=True)
             output_path.replace(clip_path)
+            words_json.unlink(missing_ok=True)
         except Exception as e:
             import logging
             logging.error(f"Failed to burn clip {clip_key}: {str(e)}")

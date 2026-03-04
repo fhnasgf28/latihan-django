@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
+const devProxyTarget = process.env.VITE_DEV_PROXY_TARGET || 'http://127.0.0.1:8000'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
@@ -15,12 +17,12 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: devProxyTarget,
         changeOrigin: true,
         secure: false,
       },
       '/media': {
-        target: 'http://127.0.0.1:8000',
+        target: devProxyTarget,
         changeOrigin: true,
         secure: false,
       },

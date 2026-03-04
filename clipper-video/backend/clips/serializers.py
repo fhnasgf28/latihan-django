@@ -237,6 +237,8 @@ class JobDetailSerializer(serializers.ModelSerializer):
         max_clips = obj.max_clips or 0
         for path in sorted(job_dir.iterdir()):
             if path.is_file() and path.name != 'work':
+                if path.suffix.lower() == '.json':
+                    continue
                 if max_clips > 0:
                     match = re.match(r'^clip_(\d{3})', path.name)
                     if match and int(match.group(1)) > max_clips:
